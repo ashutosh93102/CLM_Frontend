@@ -3,7 +3,7 @@
  * Production-level API integration with proper error handling and typing
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://clm-backend-at23.onrender.com'
+const BASE_URL = 'http://127.0.0.1:8000'
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -576,7 +576,155 @@ export const contractAPI = {
   },
 }
 
+// ============================================================================
+// TEMPLATE TYPES
+// ============================================================================
+
+export interface TemplateField {
+  name: string
+  type: string
+  description: string
+}
+
+export interface TemplateTypeInfo {
+  display_name: string
+  description: string
+  contract_type: string
+  required_fields: TemplateField[]
+  optional_fields: TemplateField[]
+  mandatory_clauses: string[]
+  business_rules?: Record<string, any>
+  sample_data?: Record<string, any>
+}
+
+export interface TemplateTypesResponse {
+  success: boolean
+  total_types: number
+  template_types: Record<string, TemplateTypeInfo>
+}
+
+export interface TemplateTypeDetailResponse {
+  success: boolean
+  template_type: string
+  display_name: string
+  description: string
+  contract_type: string
+  required_fields: TemplateField[]
+  optional_fields: TemplateField[]
+  mandatory_clauses: string[]
+  business_rules?: Record<string, any>
+  sample_data?: Record<string, any>
+}
+
+export interface TemplateValidateRequest {
+  template_type: string
+  data: Record<string, any>
+}
+
+export interface TemplateValidateResponse {
+  success: boolean
+  is_valid: boolean
+  missing_fields: string[]
+  message: string
+}
+
+export interface TemplateCreateRequest {
+  template_type: string
+  name: string
+  description?: string
+  status: 'draft' | 'published'
+  data: Record<string, any>
+}
+
+export interface TemplateCreateResponse {
+  success: boolean
+  template_id: string
+  name: string
+  contract_type: string
+  status: string
+  merge_fields: string[]
+  mandatory_clauses: string[]
+  message: string
+}
+
 export const templateAPI = {
+  // GET /api/v1/templates/types/ - Get all template types
+  getAllTemplateTypes: async (accessToken: string): Promise<TemplateTypesResponse> => {
+    const response = await fetch(`${BASE_URL}/api/v1/templates/types/`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+    })
+
+    return handleResponse<TemplateTypesResponse>(response)
+  },
+
+  // GET /api/v1/templates/types/{type}/ - Get specific template type details
+  getTemplateTypeDetail: async (
+    accessToken: string,
+    templateType: string
+  ): Promise<TemplateTypeDetailResponse> => {
+    const response = await fetch(`${BASE_URL}/api/v1/templates/types/${templateType}/`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+    })
+
+    return handleResponse<TemplateTypeDetailResponse>(response)
+  },
+
+  // GET /api/v1/templates/summary/ - Get template summary
+  getTemplateSummary: async (accessToken: string) => {
+    const response = await fetch(`${BASE_URL}/api/v1/templates/summary/`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+    })
+
+    return handleResponse<any>(response)
+  },
+
+  // POST /api/v1/templates/validate/ - Validate template data
+  validateTemplateData: async (
+    accessToken: string,
+    data: TemplateValidateRequest
+  ): Promise<TemplateValidateResponse> => {
+    const response = await fetch(`${BASE_URL}/api/v1/templates/validate/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(data),
+    })
+
+    return handleResponse<TemplateValidateResponse>(response)
+  },
+
+  // POST /api/v1/templates/create-from-type/ - Create template from type
+  createTemplateFromType: async (
+    accessToken: string,
+    data: TemplateCreateRequest
+  ): Promise<TemplateCreateResponse> => {
+    const response = await fetch(`${BASE_URL}/api/v1/templates/create-from-type/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(data),
+    })
+
+    return handleResponse<TemplateCreateResponse>(response)
+  },
+
+  // Legacy endpoints (kept for backward compatibility)
   // GET /api/contract-templates/
   getTemplates: async (accessToken: string) => {
     const response = await fetch(`${BASE_URL}/api/contract-templates/`, {
