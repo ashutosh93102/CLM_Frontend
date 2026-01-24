@@ -4,7 +4,7 @@
 # Tests all search-related endpoints (full-text, semantic, hybrid, facets, etc.)
 
 # BASE_URL="http://127.0.0.1:8000/"
-BASE_URL="https://clm-backend-at23.onrender.com"
+BASE_URL="http://127.0.0.1:8000"
 # Color codes
 GREEN='\033[0;32m'
 RED='\033[0;31m'

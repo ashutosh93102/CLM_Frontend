@@ -17,7 +17,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   breadcrumbs,
 }) => {
   return (
-    <div className="flex h-screen bg-slate-50">
+    <div className="flex h-screen bg-[#F2F0EB]">
       {/* Sidebar */}
       <SidebarV2 />
 
@@ -62,7 +62,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         )}
 
         {/* Page Content */}
-        <div className="px-6 md:px-8 py-8">
+        <div className="p-8">
           {children}
         </div>
       </main>

@@ -415,9 +415,9 @@ export interface ContractVersion {
 }
 
 export const contractAPI = {
-  // GET /api/contracts/statistics/
+  // GET /api/v1/contracts/statistics/
   getStatistics: async (accessToken: string) => {
-    const response = await fetch(`${BASE_URL}/api/contracts/statistics/`, {
+    const response = await fetch(`${BASE_URL}/api/v1/contracts/statistics/`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -428,9 +428,9 @@ export const contractAPI = {
     return handleResponse<any>(response)
   },
 
-  // GET /api/contracts/recent/
+  // GET /api/v1/contracts/recent/
   getRecentContracts: async (accessToken: string) => {
-    const response = await fetch(`${BASE_URL}/api/contracts/recent/`, {
+    const response = await fetch(`${BASE_URL}/api/v1/contracts/recent/`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -441,9 +441,9 @@ export const contractAPI = {
     return handleResponse<any>(response)
   },
 
-  // GET /api/contracts/
+  // GET /api/v1/contracts/
   listContracts: async (accessToken: string) => {
-    const response = await fetch(`${BASE_URL}/api/contracts/`, {
+    const response = await fetch(`${BASE_URL}/api/v1/contracts/`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -454,9 +454,9 @@ export const contractAPI = {
     return handleResponse<Contract[]>(response)
   },
 
-  // POST /api/contracts/
+  // POST /api/v1/contracts/
   createContract: async (accessToken: string, data: any) => {
-    const response = await fetch(`${BASE_URL}/api/contracts/`, {
+    const response = await fetch(`${BASE_URL}/api/v1/contracts/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -468,9 +468,9 @@ export const contractAPI = {
     return handleResponse<Contract>(response)
   },
 
-  // GET /api/contracts/{id}/
+  // GET /api/v1/contracts/{id}/
   getContractById: async (accessToken: string, id: string) => {
-    const response = await fetch(`${BASE_URL}/api/contracts/${id}/`, {
+    const response = await fetch(`${BASE_URL}/api/v1/contracts/${id}/`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -481,9 +481,9 @@ export const contractAPI = {
     return handleResponse<Contract>(response)
   },
 
-  // PUT /api/contracts/{id}/
+  // PUT /api/v1/contracts/{id}/
   updateContract: async (accessToken: string, id: string, data: any) => {
-    const response = await fetch(`${BASE_URL}/api/contracts/${id}/`, {
+    const response = await fetch(`${BASE_URL}/api/v1/contracts/${id}/`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -495,9 +495,9 @@ export const contractAPI = {
     return handleResponse<Contract>(response)
   },
 
-  // POST /api/contracts/{id}/clone/
+  // POST /api/v1/contracts/{id}/clone/
   cloneContract: async (accessToken: string, id: string) => {
-    const response = await fetch(`${BASE_URL}/api/contracts/${id}/clone/`, {
+    const response = await fetch(`${BASE_URL}/api/v1/contracts/${id}/clone/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -508,9 +508,9 @@ export const contractAPI = {
     return handleResponse<Contract>(response)
   },
 
-  // POST /api/contracts/{id}/versions/
+  // POST /api/v1/contracts/{id}/versions/
   createContractVersion: async (accessToken: string, id: string, data: any) => {
-    const response = await fetch(`${BASE_URL}/api/contracts/${id}/versions/`, {
+    const response = await fetch(`${BASE_URL}/api/v1/contracts/${id}/versions/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -522,9 +522,9 @@ export const contractAPI = {
     return handleResponse<ContractVersion>(response)
   },
 
-  // GET /api/contracts/{id}/versions/
+  // GET /api/v1/contracts/{id}/versions/
   listContractVersions: async (accessToken: string, id: string) => {
-    const response = await fetch(`${BASE_URL}/api/contracts/${id}/versions/`, {
+    const response = await fetch(`${BASE_URL}/api/v1/contracts/${id}/versions/`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -535,9 +535,9 @@ export const contractAPI = {
     return handleResponse<ContractVersion[]>(response)
   },
 
-  // POST /api/contracts/validate-clauses/
+  // POST /api/v1/contracts/validate-clauses/
   validateClauses: async (accessToken: string, clauses: unknown[]) => {
-    const response = await fetch(`${BASE_URL}/api/contracts/validate-clauses/`, {
+    const response = await fetch(`${BASE_URL}/api/v1/contracts/validate-clauses/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -549,9 +549,9 @@ export const contractAPI = {
     return handleResponse<any>(response)
   },
 
-  // GET /api/contracts/search/
+  // GET /api/v1/contracts/search/
   searchContracts: async (accessToken: string, query: string) => {
-    const response = await fetch(`${BASE_URL}/api/contracts/search/?q=${encodeURIComponent(query)}`, {
+    const response = await fetch(`${BASE_URL}/api/v1/contracts/search/?q=${encodeURIComponent(query)}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -562,9 +562,9 @@ export const contractAPI = {
     return handleResponse<Contract[]>(response)
   },
 
-  // GET /api/contracts/filter/
+  // GET /api/v1/contracts/filter/
   filterContracts: async (accessToken: string, status: string) => {
-    const response = await fetch(`${BASE_URL}/api/contracts/filter/?status=${status}`, {
+    const response = await fetch(`${BASE_URL}/api/v1/contracts/filter/?status=${status}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

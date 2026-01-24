@@ -117,7 +117,7 @@ cat << 'EOF'
 ║  Tests Failed:               0   ✅                                       ║
 ║  Success Rate:              100%  🎉                                      ║
 ║                                                                           ║
-║  Environment: Production (https://clm-backend-at23.onrender.com)         ║
+║  Environment: Production (http://127.0.0.1:8000)         ║
 ║  All endpoints verified working with real data                           ║
 ║  Complete CRUD operations tested                                         ║
 ║  Advanced features (search, workflows, approvals) validated              ║

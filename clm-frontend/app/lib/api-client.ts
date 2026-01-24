@@ -83,7 +83,9 @@ export class ApiClient {
   private token: string | null = null
   private refreshToken: string | null = null
 
-  constructor(baseUrl: string = process.env.NEXT_PUBLIC_API_URL || 'https://clm-backend-at23.onrender.com') {
+  private static readonly API_V1_PREFIX = '/api/v1'
+
+  constructor(baseUrl: string = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000') {
     this.baseUrl = baseUrl
     this.loadTokens()
   }
@@ -212,34 +214,34 @@ export class ApiClient {
 
   // ==================== CONTRACTS ====================
   async createContract(data: Partial<Contract>): Promise<ApiResponse<Contract>> {
-    return this.request('POST', '/api/contracts/', data)
+    return this.request('POST', `${ApiClient.API_V1_PREFIX}/contracts/`, data)
   }
 
   async getContracts(params?: Record<string, any>): Promise<ApiResponse> {
     const queryString = params ? '?' + new URLSearchParams(params).toString() : ''
-    return this.request('GET', `/api/contracts/${queryString}`)
+    return this.request('GET', `${ApiClient.API_V1_PREFIX}/contracts/${queryString}`)
   }
 
   async getContractById(id: string): Promise<ApiResponse<Contract>> {
-    return this.request('GET', `/api/contracts/${id}/`)
+    return this.request('GET', `${ApiClient.API_V1_PREFIX}/contracts/${id}/`)
   }
 
   async updateContract(id: string, data: Partial<Contract>): Promise<ApiResponse<Contract>> {
-    return this.request('PUT', `/api/contracts/${id}/`, data)
+    return this.request('PUT', `${ApiClient.API_V1_PREFIX}/contracts/${id}/`, data)
   }
 
   async deleteContract(id: string): Promise<ApiResponse> {
-    return this.request('DELETE', `/api/contracts/${id}/`)
+    return this.request('DELETE', `${ApiClient.API_V1_PREFIX}/contracts/${id}/`)
   }
 
   async cloneContract(id: string, newTitle: string): Promise<ApiResponse<Contract>> {
-    return this.request('POST', `/api/contracts/${id}/clone/`, {
+    return this.request('POST', `${ApiClient.API_V1_PREFIX}/contracts/${id}/clone/`, {
       title: newTitle,
     })
   }
 
   async getContractVersions(id: string): Promise<ApiResponse> {
-    return this.request('GET', `/api/contracts/${id}/versions/`)
+    return this.request('GET', `${ApiClient.API_V1_PREFIX}/contracts/${id}/versions/`)
   }
 
   async createContractVersion(
@@ -247,63 +249,63 @@ export class ApiClient {
     changeSummary: string,
     selectedClauses?: string[]
   ): Promise<ApiResponse> {
-    return this.request('POST', `/api/contracts/${id}/versions/`, {
+    return this.request('POST', `${ApiClient.API_V1_PREFIX}/contracts/${id}/versions/`, {
       change_summary: changeSummary,
       selected_clauses: selectedClauses || [],
     })
   }
 
   async getContractStatistics(): Promise<ApiResponse> {
-    return this.request('GET', '/api/contracts/statistics/')
+    return this.request('GET', `${ApiClient.API_V1_PREFIX}/contracts/statistics/`)
   }
 
   // ==================== TEMPLATES ====================
   async createTemplate(data: Partial<ContractTemplate>): Promise<ApiResponse<ContractTemplate>> {
-    return this.request('POST', '/api/contract-templates/', data)
+    return this.request('POST', `${ApiClient.API_V1_PREFIX}/contract-templates/`, data)
   }
 
   async getTemplates(): Promise<ApiResponse> {
-    return this.request('GET', '/api/contract-templates/')
+    return this.request('GET', `${ApiClient.API_V1_PREFIX}/contract-templates/`)
   }
 
   async getTemplateById(id: string): Promise<ApiResponse<ContractTemplate>> {
-    return this.request('GET', `/api/contract-templates/${id}/`)
+    return this.request('GET', `${ApiClient.API_V1_PREFIX}/contract-templates/${id}/`)
   }
 
   async updateTemplate(
     id: string,
     data: Partial<ContractTemplate>
   ): Promise<ApiResponse<ContractTemplate>> {
-    return this.request('PUT', `/api/contract-templates/${id}/`, data)
+    return this.request('PUT', `${ApiClient.API_V1_PREFIX}/contract-templates/${id}/`, data)
   }
 
   async deleteTemplate(id: string): Promise<ApiResponse> {
-    return this.request('DELETE', `/api/contract-templates/${id}/`)
+    return this.request('DELETE', `${ApiClient.API_V1_PREFIX}/contract-templates/${id}/`)
   }
 
   // ==================== WORKFLOWS ====================
   async createWorkflow(data: Partial<Workflow>): Promise<ApiResponse<Workflow>> {
-    return this.request('POST', '/api/workflows/', data)
+    return this.request('POST', `${ApiClient.API_V1_PREFIX}/workflows/`, data)
   }
 
   async getWorkflows(): Promise<ApiResponse> {
-    return this.request('GET', '/api/workflows/')
+    return this.request('GET', `${ApiClient.API_V1_PREFIX}/workflows/`)
   }
 
   async getWorkflowById(id: string): Promise<ApiResponse<Workflow>> {
-    return this.request('GET', `/api/workflows/${id}/`)
+    return this.request('GET', `${ApiClient.API_V1_PREFIX}/workflows/${id}/`)
   }
 
   async updateWorkflow(id: string, data: Partial<Workflow>): Promise<ApiResponse<Workflow>> {
-    return this.request('PUT', `/api/workflows/${id}/`, data)
+    return this.request('PUT', `${ApiClient.API_V1_PREFIX}/workflows/${id}/`, data)
   }
 
   async deleteWorkflow(id: string): Promise<ApiResponse> {
-    return this.request('DELETE', `/api/workflows/${id}/`)
+    return this.request('DELETE', `${ApiClient.API_V1_PREFIX}/workflows/${id}/`)
   }
 
   async getWorkflowInstances(workflowId: string): Promise<ApiResponse> {
-    return this.request('GET', `/api/workflows/${workflowId}/instances/`)
+    return this.request('GET', `${ApiClient.API_V1_PREFIX}/workflows/${workflowId}/instances/`)
   }
 
   // ==================== APPROVALS ====================
@@ -405,7 +407,7 @@ export class ApiClient {
 
   // ==================== HEALTH ====================
   async getHealth(): Promise<ApiResponse> {
-    return this.request('GET', '/api/health/')
+    return this.request('GET', `${ApiClient.API_V1_PREFIX}/health/`)
   }
 }
 

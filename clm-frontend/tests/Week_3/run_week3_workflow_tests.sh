@@ -3,7 +3,7 @@
 # WEEK 3 - WORKFLOW & APPROVAL ENGINE TEST
 # Tests approval workflow with email and in-app notifications
 
-# BASE_URL="https://clm-backend-at23.onrender.com"
+# BASE_URL="http://127.0.0.1:8000"
 BASE_URL="http://127.0.0.1:8000/"
 
 # Color codes

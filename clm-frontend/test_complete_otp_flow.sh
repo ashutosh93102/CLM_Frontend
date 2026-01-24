@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BASE_URL="https://clm-backend-at23.onrender.com"
+BASE_URL="http://127.0.0.1:8000"
 TIMESTAMP=$(date +%s)
 TEST_EMAIL="otp_flow_test_${TIMESTAMP}@example.com"
 PASSWORD="SecurePass123!"
