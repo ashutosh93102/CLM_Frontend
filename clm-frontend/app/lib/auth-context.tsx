@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { authAPI, tokenManager, User } from './api'
+import { ApiClient } from './api-client'
 
 interface AuthContextType {
   isAuthenticated: boolean
@@ -23,9 +24,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
 
   useEffect(() => {
-    const token = tokenManager.getAccessToken()
-    setIsAuthenticated(!!token)
-    setIsLoading(false)
+    const bootstrap = async () => {
+      const token = tokenManager.getAccessToken()
+      const cachedUser = tokenManager.getUser()
+
+      setIsAuthenticated(!!token)
+      setUser(cachedUser)
+
+      // If we have a token but no cached user (e.g. older login flow), fetch /me once.
+      if (token && !cachedUser) {
+        try {
+          const client = new ApiClient()
+          const me = await client.getCurrentUser()
+          if (me.success && me.data) {
+            const u = (me.data as any) as User
+            setUser(u)
+            tokenManager.setUser(u)
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      setIsLoading(false)
+    }
+
+    bootstrap()
   }, [])
 
   const login = async (email: string, password: string) => {

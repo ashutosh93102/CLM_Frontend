@@ -16,22 +16,94 @@ const CreateContractInner = () => {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [contractTitle, setContractTitle] = useState('');
+  const [templatesLoading, setTemplatesLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [templateContent, setTemplateContent] = useState<string>('');
+  const [templateFields, setTemplateFields] = useState<string[]>([]);
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+  const [templateContentLoading, setTemplateContentLoading] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      fetchData();
-    }
-  }, [user]);
+    fetchTemplates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const filename = searchParams.get('template');
     if (filename) setSelectedTemplate(filename);
   }, [searchParams]);
 
-  const fetchData = async () => {
+  useEffect(() => {
+    if (!selectedTemplate) {
+      setTemplateContent('');
+      setTemplateFields([]);
+      setFieldValues({});
+      return;
+    }
+
+    const load = async () => {
+      try {
+        setTemplateContentLoading(true);
+        const client = new ApiClient();
+        const res = await client.getTemplateFileContent(selectedTemplate);
+        if (!res.success) {
+          setTemplateContent('');
+          setTemplateFields([]);
+          setFieldValues({});
+          return;
+        }
+
+        const content = (res.data as any)?.content || '';
+        setTemplateContent(content);
+
+        const rx = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
+        const keys = new Set<string>();
+        let m: RegExpExecArray | null;
+        while ((m = rx.exec(content)) !== null) {
+          const key = (m[1] || '').trim();
+          if (key) keys.add(key);
+        }
+
+        const fields = Array.from(keys).sort();
+        setTemplateFields(fields);
+        setFieldValues((prev) => {
+          const next: Record<string, string> = { ...prev };
+          for (const f of fields) {
+            if (next[f] === undefined) next[f] = '';
+          }
+          // Remove stale keys
+          Object.keys(next).forEach((k) => {
+            if (!keys.has(k)) delete next[k];
+          });
+          return next;
+        });
+      } finally {
+        setTemplateContentLoading(false);
+      }
+    };
+
+    load();
+  }, [selectedTemplate]);
+
+  const labelFromKey = (k: string) =>
+    k
+      .replace(/_/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+
+  const inputTypeForKey = (k: string) => {
+    const s = k.toLowerCase();
+    if (s.includes('date')) return 'date';
+    if (s.includes('email')) return 'email';
+    if (s.includes('amount') || s.includes('price') || s.includes('value') || s.includes('fee')) return 'number';
+    return 'text';
+  };
+
+  const fetchTemplates = async () => {
     try {
+      setTemplatesLoading(true);
       const client = new ApiClient();
       const templatesResponse = await client.listTemplateFiles();
 
@@ -50,6 +122,8 @@ const CreateContractInner = () => {
     } catch (err) {
       console.error('Failed to fetch data:', err);
       setError('Failed to load templates');
+    } finally {
+      setTemplatesLoading(false);
     }
   };
 
@@ -74,7 +148,7 @@ const CreateContractInner = () => {
         filename: selectedTemplate,
         title: contractTitle,
         selectedClauses: [],
-        structuredInputs: {},
+        structuredInputs: fieldValues,
       });
 
       if (!response.success) {
@@ -137,6 +211,9 @@ const CreateContractInner = () => {
           {/* Template Selection */}
             <div className="bg-white p-6 rounded-[20px] shadow-sm">
               <h3 className="text-lg font-semibold text-[#2D3748] mb-4">Select Template</h3>
+              {templatesLoading ? (
+                <p className="text-gray-500 text-center py-8">Loading templates…</p>
+              ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {templates.map((template) => (
                 <div
@@ -156,16 +233,57 @@ const CreateContractInner = () => {
                 </div>
               ))}
             </div>
+              )}
             {templates.length === 0 && (
               <p className="text-gray-500 text-center py-8">No templates available</p>
             )}
             </div>
 
+          {/* Template Fields */}
+          <div className="bg-white p-6 rounded-[20px] shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-semibold text-[#2D3748]">Fill Template Values</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Fields are detected from <span className="font-mono font-semibold">{'{{placeholders}}'}</span> inside the selected template.
+                </p>
+              </div>
+              {!selectedTemplate && (
+                <div className="text-sm text-gray-500">Select a template first</div>
+              )}
+            </div>
+
+            {templateContentLoading ? (
+              <div className="text-gray-500 text-center py-8">Loading template…</div>
+            ) : !selectedTemplate ? (
+              <div className="text-gray-500 text-center py-8">No template selected</div>
+            ) : templateFields.length === 0 ? (
+              <div className="text-gray-500 text-center py-8">
+                No placeholders found. You can still create the contract.
+              </div>
+            ) : (
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {templateFields.map((k) => (
+                  <div key={k}>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{labelFromKey(k)}</label>
+                    <input
+                      type={inputTypeForKey(k)}
+                      value={fieldValues[k] || ''}
+                      onChange={(e) => setFieldValues((p) => ({ ...p, [k]: e.target.value }))}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder={`Enter ${labelFromKey(k)}`}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Submit Button */}
             <div className="flex justify-end">
               <button
                 type="submit"
-                disabled={loading || !selectedTemplateObj}
+                disabled={loading || !selectedTemplateObj || !user}
                 className="bg-[#0F141F] text-white px-8 py-4 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
               {loading ? (
@@ -186,6 +304,12 @@ const CreateContractInner = () => {
               )}
               </button>
             </div>
+
+            {!user && (
+              <div className="text-sm text-gray-500 text-right">
+                Please log in to create contracts.
+              </div>
+            )}
           </form>
         </div>
       </div>

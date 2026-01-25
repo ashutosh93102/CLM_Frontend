@@ -77,6 +77,8 @@ export interface FileTemplateItem {
   status: string
   created_at?: string
   updated_at?: string
+  created_by_id?: string
+  created_by_email?: string
 }
 
 export interface FileTemplateContentResponse {
@@ -173,11 +175,42 @@ export class ApiClient {
     }
   }
 
+  private async refreshAccessToken(): Promise<boolean> {
+    if (!this.refreshToken) return false
+
+    try {
+      const response = await fetch(`${this.baseUrl}/api/auth/refresh/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ refresh: this.refreshToken }),
+      })
+
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        return false
+      }
+
+      const access = (data as any)?.access
+      const refresh = (data as any)?.refresh
+      if (access) {
+        this.setTokens(access, refresh)
+        return true
+      }
+
+      return false
+    } catch {
+      return false
+    }
+  }
+
   private async request<T>(
     method: string,
     endpoint: string,
     data?: any,
-    customHeaders?: Record<string, string>
+    customHeaders?: Record<string, string>,
+    allowRetry: boolean = true,
+    options?: { auth?: boolean }
   ): Promise<ApiResponse<T>> {
     try {
       const headers: Record<string, string> = {
@@ -185,7 +218,9 @@ export class ApiClient {
         ...customHeaders,
       }
 
-      if (this.token) {
+      const useAuth = options?.auth !== false
+
+      if (useAuth && this.token) {
         headers['Authorization'] = `Bearer ${this.token}`
       }
 
@@ -202,8 +237,15 @@ export class ApiClient {
       const response = await fetch(`${this.baseUrl}${endpoint}`, config)
 
       if (response.status === 401) {
-        this.clearTokens()
-        throw new Error('Unauthorized - Please log in again')
+        if (useAuth && allowRetry && (await this.refreshAccessToken())) {
+          return this.request(method, endpoint, data, customHeaders, false, options)
+        }
+        // Don't throw; let callers handle 401 explicitly.
+        return {
+          success: false,
+          error: 'Unauthorized - Please log in again',
+          status: 401,
+        }
       }
 
       const responseData = await response.json().catch(() => ({}))
@@ -382,21 +424,31 @@ export class ApiClient {
   }
 
   async getTemplateFile(templateType: string): Promise<ApiResponse<TemplateFileResponse>> {
-    return this.request('GET', `${ApiClient.API_V1_PREFIX}/templates/files/${templateType}/`)
+    return this.request('GET', `${ApiClient.API_V1_PREFIX}/templates/files/${templateType}/`, undefined, undefined, true, {
+      auth: false,
+    })
   }
 
   // ==================== FILE-BASED TEMPLATES (NO DB) ====================
   async listTemplateFiles(): Promise<ApiResponse<{ success: boolean; count: number; results: FileTemplateItem[] }>> {
-    return this.request('GET', `${ApiClient.API_V1_PREFIX}/templates/files/`)
+    return this.request('GET', `${ApiClient.API_V1_PREFIX}/templates/files/`, undefined, undefined, true, {
+      auth: false,
+    })
   }
 
-  async createTemplateFile(params: { name?: string; filename?: string; content: string }): Promise<ApiResponse<{ success: boolean; template: FileTemplateItem }>> {
+  async createTemplateFile(params: { name?: string; filename?: string; description?: string; content: string }): Promise<ApiResponse<{ success: boolean; template: FileTemplateItem }>> {
     return this.request('POST', `${ApiClient.API_V1_PREFIX}/templates/files/`, params)
+  }
+
+  async listMyTemplateFiles(): Promise<ApiResponse<{ success: boolean; count: number; results: FileTemplateItem[] }>> {
+    return this.request('GET', `${ApiClient.API_V1_PREFIX}/templates/files/mine/`)
   }
 
   async getTemplateFileContent(filename: string): Promise<ApiResponse<FileTemplateContentResponse>> {
     const safe = encodeURIComponent(filename)
-    return this.request('GET', `${ApiClient.API_V1_PREFIX}/templates/files/content/${safe}/`)
+    return this.request('GET', `${ApiClient.API_V1_PREFIX}/templates/files/content/${safe}/`, undefined, undefined, true, {
+      auth: false,
+    })
   }
 
   // ==================== WORKFLOWS ====================

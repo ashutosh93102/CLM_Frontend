@@ -9,34 +9,17 @@ import {
   Download,
   FileText,
   Minus,
+  MoreVertical,
   PlusCircle,
   Plus,
   Search,
   Shield,
 } from 'lucide-react';
 import { ApiClient, FileTemplateItem } from '@/app/lib/api-client';
+import { useAuth } from '@/app/lib/auth-context';
+import { downloadTextAsPdf } from '@/app/lib/downloads';
 
 type Template = FileTemplateItem;
-
-type TemplateTypeKey =
-  | 'NDA'
-  | 'MSA'
-  | 'EMPLOYMENT'
-  | 'SERVICE_AGREEMENT'
-  | 'AGENCY_AGREEMENT'
-  | 'PROPERTY_MANAGEMENT'
-  | 'PURCHASE_AGREEMENT';
-
-function toTemplateTypeKey(contractType: string): TemplateTypeKey {
-  const t = (contractType || '').toLowerCase();
-  if (t.includes('nda')) return 'NDA';
-  if (t.includes('employment')) return 'EMPLOYMENT';
-  if (t.includes('agency')) return 'AGENCY_AGREEMENT';
-  if (t.includes('property')) return 'PROPERTY_MANAGEMENT';
-  if (t.includes('msa')) return 'MSA';
-  if (t.includes('purchase')) return 'PURCHASE_AGREEMENT';
-  return 'SERVICE_AGREEMENT';
-}
 
 function statusPill(status: string) {
   const s = (status || '').toLowerCase();
@@ -46,6 +29,7 @@ function statusPill(status: string) {
 }
 
 const TemplateLibrary: React.FC = () => {
+  const { user } = useAuth();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,8 +38,6 @@ const TemplateLibrary: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<'Agreements' | 'NDA' | 'SOW' | 'All'>('All');
   const [zoom, setZoom] = useState(100);
   const [rawTemplateDoc, setRawTemplateDoc] = useState('');
-  const [previewTemplateDoc, setPreviewTemplateDoc] = useState('');
-  const [previewMode, setPreviewMode] = useState<'raw' | 'filled'>('raw');
   const [templateDocLoading, setTemplateDocLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createBusy, setCreateBusy] = useState(false);
@@ -63,13 +45,11 @@ const TemplateLibrary: React.FC = () => {
   const [createType, setCreateType] = useState('NDA');
   const [createDescription, setCreateDescription] = useState('');
   const [createContent, setCreateContent] = useState('');
-  const [form, setForm] = useState<Record<string, string>>({
-    counterparty_name: '',
-    effective_date: '',
-    duration_months: '12',
-    termination_clause: 'Standard (30 days notice)',
-    governing_law: 'State of Delaware',
-  });
+  const [myTemplatesCount, setMyTemplatesCount] = useState<number | null>(null);
+  const [downloadOpen, setDownloadOpen] = useState(false);
+  const [showOnlyMine, setShowOnlyMine] = useState(false);
+  const [templatesMenuOpen, setTemplatesMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -77,7 +57,19 @@ const TemplateLibrary: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    // Keep "My Templates" card accurate.
+    if (!user) {
+      setMyTemplatesCount(null);
+      return;
+    }
+    fetchMyTemplatesCount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.user_id]);
+
+  useEffect(() => {
     if (!selectedTemplate) return;
+    setDownloadOpen(false);
+    setTemplatesMenuOpen(false);
     const load = async () => {
       try {
         setTemplateDocLoading(true);
@@ -86,15 +78,11 @@ const TemplateLibrary: React.FC = () => {
         if (response.success && response.data) {
           const content = (response.data as any).content || '';
           setRawTemplateDoc(content);
-          setPreviewTemplateDoc(content);
-          setPreviewMode('raw');
           return;
         }
         setRawTemplateDoc('');
-        setPreviewTemplateDoc('');
       } catch {
         setRawTemplateDoc('');
-        setPreviewTemplateDoc('');
       } finally {
         setTemplateDocLoading(false);
       }
@@ -103,25 +91,41 @@ const TemplateLibrary: React.FC = () => {
   }, [selectedTemplate]);
 
   useEffect(() => {
-    // Real-time preview updates while in "Filled" mode.
-    if (!rawTemplateDoc) return;
-    if (previewMode !== 'filled') return;
-
-    const replacements: Record<string, string> = {
-      counterparty_name: form.counterparty_name,
-      effective_date: form.effective_date,
-      duration_months: form.duration_months,
-      termination_clause: form.termination_clause,
-      governing_law: form.governing_law,
+    if (!downloadOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      // Close for any click outside the menu/button container.
+      if (target.closest('[data-download-menu]')) return;
+      setDownloadOpen(false);
     };
+    document.addEventListener('click', onDocClick);
+    return () => document.removeEventListener('click', onDocClick);
+  }, [downloadOpen]);
 
-    let next = rawTemplateDoc;
-    Object.entries(replacements).forEach(([k, v]) => {
-      const rx = new RegExp(`\\{\\{\\s*${k}\\s*\\}\\}`, 'g');
-      next = next.replace(rx, v || `{{${k}}}`);
-    });
-    setPreviewTemplateDoc(next);
-  }, [rawTemplateDoc, form, previewMode]);
+  useEffect(() => {
+    if (!templatesMenuOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest('[data-templates-menu]')) return;
+      setTemplatesMenuOpen(false);
+    };
+    document.addEventListener('click', onDocClick);
+    return () => document.removeEventListener('click', onDocClick);
+  }, [templatesMenuOpen]);
+
+  useEffect(() => {
+    if (!notificationsOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest('[data-notifications-menu]')) return;
+      setNotificationsOpen(false);
+    };
+    document.addEventListener('click', onDocClick);
+    return () => document.removeEventListener('click', onDocClick);
+  }, [notificationsOpen]);
 
   const fetchTemplates = async () => {
     try {
@@ -130,10 +134,6 @@ const TemplateLibrary: React.FC = () => {
       const response = await client.listTemplateFiles();
 
       if (!response.success) {
-        if ((response.error || '').toLowerCase().includes('unauthorized')) {
-          router.push('/');
-          return;
-        }
         setError(response.error || 'Failed to load templates');
         return;
       }
@@ -151,8 +151,27 @@ const TemplateLibrary: React.FC = () => {
     }
   };
 
+  const fetchMyTemplatesCount = async () => {
+    try {
+      const client = new ApiClient();
+      const res = await client.listMyTemplateFiles();
+      if (!res.success) {
+        setMyTemplatesCount(0);
+        return;
+      }
+      const count = (res.data as any)?.count;
+      setMyTemplatesCount(typeof count === 'number' ? count : ((res.data as any)?.results || []).length);
+    } catch {
+      setMyTemplatesCount(0);
+    }
+  };
+
   const createTemplate = async () => {
     try {
+      if (!user) {
+        setError('Please log in to create templates.');
+        return;
+      }
       setCreateBusy(true);
       const client = new ApiClient();
       const displayName = createName.trim() || 'New Template';
@@ -160,8 +179,16 @@ const TemplateLibrary: React.FC = () => {
         createContent ||
         `${displayName.toUpperCase()}\n\n${(createDescription || '').trim()}\n\n[Paste your template text here]\n`;
 
+      const base = `${createType}-${displayName}`
+        .trim()
+        .replace(/\s+/g, '_')
+        .replace(/[^A-Za-z0-9_.-]/g, '');
+      const uniqueFilename = `${base || createType}-${Date.now()}`;
+
       const res = await client.createTemplateFile({
-        filename: `${createType}-${displayName}`,
+        name: displayName,
+        filename: uniqueFilename,
+        description: (createDescription || '').trim(),
         content,
       });
       if (!res.success) {
@@ -174,6 +201,7 @@ const TemplateLibrary: React.FC = () => {
       setCreateDescription('');
       setCreateContent('');
       await fetchTemplates();
+      await fetchMyTemplatesCount();
     } finally {
       setCreateBusy(false);
     }
@@ -181,7 +209,6 @@ const TemplateLibrary: React.FC = () => {
 
   const stats = useMemo(() => {
     const total = templates.length;
-    const drafts = templates.filter((t) => (t.status || '').toLowerCase() === 'draft').length;
     const lastUpdated = templates
       .filter((t) => t.updated_at)
       .sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''))[0];
@@ -194,7 +221,6 @@ const TemplateLibrary: React.FC = () => {
 
     return {
       total,
-      drafts,
       mostUsedName: mostUsed?.[0] || (templates[0]?.name || '—'),
       mostUsedCount: mostUsed?.[1] || 0,
       lastUpdatedName: lastUpdated?.name || '—',
@@ -225,24 +251,40 @@ const TemplateLibrary: React.FC = () => {
         return !ct.includes('nda') && !ct.includes('sow');
       })
       .filter((t) => {
+        if (!showOnlyMine) return true;
+        if (!user) return false;
+        return (
+          (t.created_by_id && t.created_by_id === user.user_id) ||
+          (t.created_by_email && t.created_by_email === user.email)
+        );
+      })
+      .filter((t) => {
         if (!s) return true;
         return (t.name || '').toLowerCase().includes(s) || (t.description || '').toLowerCase().includes(s);
       });
-  }, [templates, search, activeCategory]);
+  }, [templates, search, activeCategory, showOnlyMine, user]);
 
-  const resetForm = () => {
-    setForm({
-      counterparty_name: '',
-      effective_date: '',
-      duration_months: '12',
-      termination_clause: 'Standard (30 days notice)',
-      governing_law: 'State of Delaware',
-    });
+  const downloadTemplateTxt = () => {
+    if (!selectedTemplate || !rawTemplateDoc) return;
+
+    const blob = new Blob([rawTemplateDoc], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = selectedTemplate.filename || 'template.txt';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   };
 
-  const updatePreview = () => {
-    if (!rawTemplateDoc) return;
-    setPreviewMode('filled');
+  const downloadTemplatePdf = async () => {
+    if (!selectedTemplate || !rawTemplateDoc) return;
+    await downloadTextAsPdf({
+      filename: selectedTemplate.filename,
+      title: selectedTemplate.name,
+      text: rawTemplateDoc,
+    });
   };
 
   return (
@@ -253,16 +295,59 @@ const TemplateLibrary: React.FC = () => {
           <div className="flex flex-col md:flex-row md:items-center gap-4">
             <div className="flex items-center gap-4">
               <h1 className="text-3xl font-extrabold text-slate-900">Template Library</h1>
-              <button className="hidden md:inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-sm text-slate-700">
-                All Templates
-                <ChevronDown className="w-4 h-4 text-slate-400" />
-              </button>
+              <div className="relative hidden md:block" data-templates-menu>
+                <button
+                  type="button"
+                  onClick={() => setTemplatesMenuOpen((v) => !v)}
+                  className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  All Templates
+                  <ChevronDown className="w-4 h-4 text-slate-400" />
+                </button>
+
+                {templatesMenuOpen && (
+                  <div className="absolute left-0 top-12 z-30 w-[340px] rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden">
+                    <div className="px-4 py-3 border-b border-slate-100">
+                      <div className="text-xs font-semibold text-slate-500">Quick switch</div>
+                      <div className="text-sm font-bold text-slate-900">Templates</div>
+                    </div>
+                    <div className="max-h-[320px] overflow-auto">
+                      {templates.length === 0 ? (
+                        <div className="px-4 py-4 text-sm text-slate-500">No templates available</div>
+                      ) : (
+                        templates.map((t) => {
+                          const active = selectedTemplate?.id === t.id;
+                          return (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedTemplate(t);
+                                setTemplatesMenuOpen(false);
+                              }}
+                              className={`w-full px-4 py-3 text-left flex items-center justify-between gap-4 hover:bg-slate-50 ${
+                                active ? 'bg-rose-50' : ''
+                              }`}
+                            >
+                              <div className="min-w-0">
+                                <div className="text-sm font-semibold text-slate-900 truncate">{t.name}</div>
+                                <div className="text-xs text-slate-500 truncate">{t.filename}</div>
+                              </div>
+                              {active && <span className="text-xs font-semibold text-rose-600">Active</span>}
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {selectedTemplate && (
               <div className="hidden md:flex items-center gap-2 bg-white rounded-full border border-slate-200 px-4 py-2">
                 <span className="w-2 h-2 rounded-full bg-rose-400" />
-                <span className="text-sm text-slate-700">Editing: {selectedTemplate.name}</span>
+                <span className="text-sm text-slate-700">Previewing: {selectedTemplate.name}</span>
               </div>
             )}
           </div>
@@ -279,19 +364,51 @@ const TemplateLibrary: React.FC = () => {
             </div>
 
             <button
-              onClick={() => setCreateOpen(true)}
+              onClick={() => {
+                if (!user) {
+                  setError('Please log in to create templates.');
+                  return;
+                }
+                setCreateOpen(true);
+              }}
               className="inline-flex items-center gap-2 rounded-full bg-[#0F141F] text-white px-5 py-3 text-sm font-semibold"
             >
               <PlusCircle className="w-4 h-4" />
               New Template
             </button>
 
-            <button
-              className="inline-flex items-center justify-center w-11 h-11 rounded-full bg-white border border-slate-200"
-              aria-label="Notifications"
-            >
-              <Bell className="w-5 h-5 text-slate-700" />
-            </button>
+            <div className="relative" data-notifications-menu>
+              <button
+                type="button"
+                className="inline-flex items-center justify-center w-11 h-11 rounded-full bg-white border border-slate-200 hover:bg-slate-50"
+                aria-label="Notifications"
+                onClick={() => setNotificationsOpen((v) => !v)}
+              >
+                <Bell className="w-5 h-5 text-slate-700" />
+              </button>
+
+              {notificationsOpen && (
+                <div className="absolute right-0 top-14 z-40 w-[360px] rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden">
+                  <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                    <div>
+                      <div className="text-xs font-semibold text-slate-500">Updates</div>
+                      <div className="text-sm font-bold text-slate-900">Notifications</div>
+                    </div>
+                    <button
+                      type="button"
+                      className="text-sm font-semibold text-rose-600 hover:text-rose-700"
+                      onClick={() => {
+                        setNotificationsOpen(false);
+                        router.push('/notifications');
+                      }}
+                    >
+                      View all
+                    </button>
+                  </div>
+                  <div className="px-4 py-6 text-sm text-slate-500">No notifications yet.</div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -317,12 +434,15 @@ const TemplateLibrary: React.FC = () => {
           </div>
 
           <div className="rounded-2xl bg-white border border-slate-200 p-6">
-            <p className="text-slate-500 text-sm">My Drafts</p>
-            <p className="text-4xl font-bold text-slate-900 mt-2">{String(stats.drafts).padStart(2, '0')}</p>
+            <p className="text-slate-500 text-sm">My Templates</p>
+            <p className="text-4xl font-bold text-slate-900 mt-2">
+              {String(myTemplatesCount ?? 0).padStart(2, '0')}
+            </p>
             <div className="mt-4 flex items-center gap-2">
               <span className="w-7 h-7 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center">JD</span>
               <span className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center">+2</span>
             </div>
+            {!user && <p className="text-xs text-slate-400 mt-3">Log in to track your templates.</p>}
           </div>
 
           <div className="rounded-2xl bg-white border border-slate-200 p-6">
@@ -364,13 +484,28 @@ const TemplateLibrary: React.FC = () => {
 
               <div className="mt-6 flex items-center justify-between">
                 <p className="text-xs font-semibold text-slate-400 tracking-widest">TEMPLATES</p>
-                <button
-                  onClick={() => setCreateOpen(true)}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900"
-                >
-                  <Plus className="w-4 h-4" />
-                  New
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowOnlyMine((v) => !v)}
+                    disabled={!user}
+                    className={`inline-flex items-center gap-2 text-sm font-semibold rounded-full px-3 py-1 border transition disabled:opacity-50 disabled:cursor-not-allowed ${
+                      showOnlyMine
+                        ? 'border-rose-300 bg-rose-50 text-rose-700'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                    title={user ? 'Show only templates you created' : 'Log in to filter your templates'}
+                  >
+                    My
+                  </button>
+                  <button
+                    onClick={() => setCreateOpen(true)}
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900"
+                  >
+                    <Plus className="w-4 h-4" />
+                    New
+                  </button>
+                </div>
               </div>
 
               <div className="mt-3 space-y-3">
@@ -420,110 +555,10 @@ const TemplateLibrary: React.FC = () => {
             </div>
           </div>
 
-          {/* Center: Configure Template */}
-          <div className="xl:col-span-5">
-            <div className="bg-white border border-slate-200 rounded-3xl p-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-900">Configure Template</h2>
-                  <p className="text-sm text-slate-500 mt-1">{selectedTemplate?.name || 'Select a template'}</p>
-                </div>
-                <button onClick={resetForm} className="text-sm font-semibold text-rose-500">Reset Form</button>
-              </div>
-
-              <div className="mt-6 space-y-5">
-                <div>
-                  <label className="text-sm font-semibold text-slate-700">Counterparty Name</label>
-                  <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <input
-                      value={form.counterparty_name}
-                      onChange={(e) => setForm((p) => ({ ...p, counterparty_name: e.target.value }))}
-                      placeholder="e.g. Acme Corp"
-                      className="w-full bg-transparent outline-none text-sm text-slate-900"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-semibold text-slate-700">Effective Date</label>
-                    <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                      <input
-                        type="date"
-                        value={form.effective_date}
-                        onChange={(e) => setForm((p) => ({ ...p, effective_date: e.target.value }))}
-                        className="w-full bg-transparent outline-none text-sm text-slate-900"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-sm font-semibold text-slate-700">Duration (Months)</label>
-                    <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                      <input
-                        value={form.duration_months}
-                        onChange={(e) => setForm((p) => ({ ...p, duration_months: e.target.value }))}
-                        className="w-full bg-transparent outline-none text-sm text-slate-900"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-slate-700">Termination Clause</label>
-                  <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 flex items-center justify-between">
-                    <select
-                      value={form.termination_clause}
-                      onChange={(e) => setForm((p) => ({ ...p, termination_clause: e.target.value }))}
-                      className="w-full bg-transparent outline-none text-sm text-slate-900"
-                    >
-                      <option>Standard (30 days notice)</option>
-                      <option>Strict (15 days notice)</option>
-                      <option>Flexible (60 days notice)</option>
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400" />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-slate-700">Governing Law</label>
-                  <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 flex items-center justify-between">
-                    <select
-                      value={form.governing_law}
-                      onChange={(e) => setForm((p) => ({ ...p, governing_law: e.target.value }))}
-                      className="w-full bg-transparent outline-none text-sm text-slate-900"
-                    >
-                      <option>State of Delaware</option>
-                      <option>State of California</option>
-                      <option>State of New York</option>
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400" />
-                  </div>
-                </div>
-
-                <div className="pt-4 flex items-center gap-3">
-                  <button
-                    type="button"
-                    className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700"
-                    onClick={() => router.push(`/create-contract?template=${encodeURIComponent(selectedTemplate?.filename || '')}`)}
-                    disabled={!selectedTemplate}
-                  >
-                    Save Draft
-                  </button>
-                  <button
-                    type="button"
-                    className="flex-1 rounded-xl bg-[#0F141F] px-4 py-3 text-sm font-semibold text-white"
-                    onClick={updatePreview}
-                    disabled={!selectedTemplate}
-                  >
-                    Update Preview
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          
 
           {/* Right: Preview */}
-          <div className="xl:col-span-4">
+          <div className="xl:col-span-9">
             <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden">
               <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -535,11 +570,48 @@ const TemplateLibrary: React.FC = () => {
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-50 text-rose-600 border border-rose-200 text-sm font-semibold">
+                <div className="relative flex items-center gap-2" data-download-menu>
+                  <button
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-50 text-rose-600 border border-rose-200 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => setDownloadOpen((v) => !v)}
+                    disabled={!selectedTemplate || !rawTemplateDoc || templateDocLoading}
+                    type="button"
+                  >
                     <Download className="w-4 h-4" />
                     Download
+                    <MoreVertical className="w-4 h-4" />
                   </button>
+
+                  {downloadOpen && (
+                    <div className="absolute right-0 top-12 z-20 w-56 rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden">
+                      <button
+                        type="button"
+                        className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-800 hover:bg-slate-50 flex items-center gap-2"
+                        onClick={async () => {
+                          setDownloadOpen(false);
+                          await downloadTemplatePdf();
+                        }}
+                      >
+                        <span className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center">
+                          <Download className="w-4 h-4 text-slate-700" />
+                        </span>
+                        Download as PDF
+                      </button>
+                      <button
+                        type="button"
+                        className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-800 hover:bg-slate-50 flex items-center gap-2"
+                        onClick={() => {
+                          setDownloadOpen(false);
+                          downloadTemplateTxt();
+                        }}
+                      >
+                        <span className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center">
+                          <Download className="w-4 h-4 text-slate-700" />
+                        </span>
+                        Download as .txt
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -554,7 +626,7 @@ const TemplateLibrary: React.FC = () => {
                     <h3 className="text-xl font-black tracking-wide text-slate-900 uppercase">
                       {selectedTemplate?.name || 'TEMPLATE'}
                     </h3>
-                    <p className="text-xs text-slate-500 mt-2">Effective Date: {form.effective_date || '[DATE]'} </p>
+                    <p className="text-xs text-slate-400 mt-2">Exact .txt content</p>
                   </div>
 
                   <div className="mt-6">
@@ -562,36 +634,8 @@ const TemplateLibrary: React.FC = () => {
                       <div className="text-sm text-slate-500">Loading preview…</div>
                     ) : rawTemplateDoc ? (
                       <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1 text-[11px] font-semibold text-slate-700">
-                            <button
-                              type="button"
-                              onClick={() => setPreviewMode('raw')}
-                              className={
-                                previewMode === 'raw'
-                                  ? 'rounded-full bg-[#0F141F] text-white px-3 py-1'
-                                  : 'rounded-full px-3 py-1 hover:bg-slate-50'
-                              }
-                            >
-                              Raw
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setPreviewMode('filled')}
-                              className={
-                                previewMode === 'filled'
-                                  ? 'rounded-full bg-[#0F141F] text-white px-3 py-1'
-                                  : 'rounded-full px-3 py-1 hover:bg-slate-50'
-                              }
-                            >
-                              Filled
-                            </button>
-                          </div>
-                          <div className="text-xs text-slate-400">Exact .txt content</div>
-                        </div>
-
                         <pre className="whitespace-pre-wrap text-[11px] leading-6 text-slate-800 font-serif max-h-[520px] overflow-auto">
-                          {previewMode === 'raw' ? rawTemplateDoc : previewTemplateDoc}
+                          {rawTemplateDoc}
                         </pre>
                       </div>
                     ) : (
