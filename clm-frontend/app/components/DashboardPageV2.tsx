@@ -61,6 +61,9 @@ const DashboardPageV2: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        if (isLoading || !isAuthenticated) {
+          return;
+        }
         setIsSyncing(true);
         const client = new ApiClient();
         const [statsResponse, recentResponse, approvalsResponse, contractsResponse] = await Promise.all([
@@ -69,6 +72,19 @@ const DashboardPageV2: React.FC = () => {
           client.getApprovals({ status: 'pending' }),
           client.getContracts(),
         ]);
+
+        const unauthorized = [statsResponse, recentResponse, approvalsResponse, contractsResponse].some(
+          (r) => !r.success && r.status === 401
+        );
+        if (unauthorized) {
+          try {
+            client.logout();
+          } catch {
+            // ignore
+          }
+          router.push('/');
+          return;
+        }
 
         if (statsResponse.success && statsResponse.data) {
           setStats({
@@ -137,10 +153,10 @@ const DashboardPageV2: React.FC = () => {
       }
     };
 
-    if (user) {
+    if (user && !isLoading && isAuthenticated) {
       fetchData();
     }
-  }, [user]);
+  }, [user, isLoading, isAuthenticated, router]);
 
   const formatActivity = (c: Contract) => {
     const name = c.title || c.name;

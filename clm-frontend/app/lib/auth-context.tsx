@@ -50,6 +50,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     bootstrap()
+
+    const handleLogout = () => {
+      tokenManager.clearTokens()
+      setIsAuthenticated(false)
+      setUser(null)
+      setError(null)
+    }
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('auth:logout', handleLogout)
+      window.addEventListener('storage', (e) => {
+        if (e.key === 'access_token' && !e.newValue) {
+          handleLogout()
+        }
+      })
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('auth:logout', handleLogout)
+      }
+    }
   }, [])
 
   const login = async (email: string, password: string) => {

@@ -382,6 +382,12 @@ export class ApiClient {
         if (useAuth && allowRetry && (await this.refreshAccessToken())) {
           return this.request(method, endpoint, data, customHeaders, false, options)
         }
+        if (useAuth) {
+          this.clearTokens()
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('auth:logout'))
+          }
+        }
         // Don't throw; let callers handle 401 explicitly.
         return {
           success: false,

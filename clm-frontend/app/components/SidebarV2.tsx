@@ -14,6 +14,7 @@ import {
   Files,
   LayoutGrid,
   LogOut,
+  Settings,
   Upload,
 } from 'lucide-react';
 
@@ -71,9 +72,9 @@ const SidebarV2: React.FC<SidebarV2Props> = ({ mobileOpen = false, onMobileOpenC
       activePaths: ['/templates'],
     },
     {
-      name: 'Repository',
+      name: 'Contracts',
       href: '/contracts',
-      icon: <Files className="w-5 h-5" />,
+      icon: <FileText className="w-5 h-5" />,
       activePaths: ['/contracts', '/contracts/'],
     },
     {
@@ -101,9 +102,9 @@ const SidebarV2: React.FC<SidebarV2Props> = ({ mobileOpen = false, onMobileOpenC
       activePaths: ['/analytics'],
     },
     {
-      name: 'Parties',
+      name: 'Settings',
       href: '/settings',
-      icon: <CheckSquare className="w-5 h-5" />,
+      icon: <Settings className="w-5 h-5" />,
       activePaths: ['/settings'],
     },
   ];
