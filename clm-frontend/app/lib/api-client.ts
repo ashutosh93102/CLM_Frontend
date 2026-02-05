@@ -1204,59 +1204,81 @@ export class ApiClient {
       return { success: false, error: 'contract_id and at least one signer are required', status: 400 }
     }
 
-    // 1) Upload (ignore already uploaded)
-    const uploadRes = await this.firmaUploadContract({
-      contract_id: contractId,
-      document_name: payload.document_name,
-      signers,
-      signing_order: payload.signing_order || 'sequential',
-      force: Boolean(payload.force_upload),
-    })
-    if (!uploadRes.success) {
-      const msg = String(uploadRes.error || '').toLowerCase()
-      const alreadyUploaded = msg.includes('already uploaded') || msg.includes('already')
-      if (!alreadyUploaded) {
-        return { success: false, error: uploadRes.error || 'Failed to upload contract for Firma signing', status: uploadRes.status }
-      }
-    }
+    const shouldForceUploadInitial = Boolean(payload.force_upload)
 
-    // 2) Send invites (ignore already sent)
-    const sendRes = await this.firmaSendForSignature({
-      contract_id: contractId,
-      signers,
-      signing_order: payload.signing_order || 'sequential',
-      expires_in_days: payload.expires_in_days ?? 30,
-    })
-    if (!sendRes.success) {
-      const msg = String(sendRes.error || '').toLowerCase()
-      const noSignersFound = msg.includes('no signers found')
-      const alreadySent = msg.includes('already sent') || msg.includes('already')
-      if (noSignersFound) {
-        return {
-          success: false,
-          error:
-            'Firma signing request has no recipients. This usually happens if the document was uploaded before signers were provided. Please re-upload/reset the Firma signing request for this contract (or create a new contract) and try again.',
-          status: sendRes.status,
+    const uploadThenSendThenUrl = async (opts: { forceUpload: boolean }): Promise<ApiResponse<{ signing_url: string }>> => {
+      // 1) Upload (ignore already uploaded)
+      const uploadRes = await this.firmaUploadContract({
+        contract_id: contractId,
+        document_name: payload.document_name,
+        signers,
+        signing_order: payload.signing_order || 'sequential',
+        force: Boolean(opts.forceUpload),
+      })
+      if (!uploadRes.success) {
+        const msg = String(uploadRes.error || '').toLowerCase()
+        const alreadyUploaded = msg.includes('already uploaded') || msg.includes('already')
+        if (!alreadyUploaded) {
+          return { success: false, error: uploadRes.error || 'Failed to upload contract for Firma signing', status: uploadRes.status }
         }
       }
-      if (!alreadySent) {
-        return { success: false, error: sendRes.error || 'Failed to send Firma signing invitations', status: sendRes.status }
+
+      // 2) Send invites (ignore already sent)
+      const sendRes = await this.firmaSendForSignature({
+        contract_id: contractId,
+        signers,
+        signing_order: payload.signing_order || 'sequential',
+        expires_in_days: payload.expires_in_days ?? 30,
+      })
+      if (!sendRes.success) {
+        const msg = String(sendRes.error || '').toLowerCase()
+        const noSignersFound = msg.includes('no signers found') || msg.includes('no recipients')
+        const alreadySent = msg.includes('already sent') || msg.includes('already')
+        if (noSignersFound) {
+          return {
+            success: false,
+            error:
+              'Firma signing request has no recipients. This usually happens if the document was uploaded before signers were provided. Please re-upload/reset the Firma signing request for this contract (or create a new contract) and try again.',
+            status: sendRes.status,
+          }
+        }
+        if (!alreadySent) {
+          return { success: false, error: sendRes.error || 'Failed to send Firma signing invitations', status: sendRes.status }
+        }
       }
+
+      // 3) Get signing URL for first signer
+      const signerEmail = signers[0].email
+      const urlRes = await this.firmaGetSigningUrl(contractId, signerEmail)
+      if (!urlRes.success) {
+        return { success: false, error: urlRes.error || 'Failed to generate Firma signing URL', status: urlRes.status }
+      }
+
+      const signingUrl = String((urlRes.data as any)?.signing_url || '')
+      if (!signingUrl) {
+        return { success: false, error: 'Signing URL missing in response', status: 500 }
+      }
+
+      return { success: true, data: { signing_url: signingUrl }, status: 200 }
     }
 
-    // 3) Get signing URL for first signer
-    const signerEmail = signers[0].email
-    const urlRes = await this.firmaGetSigningUrl(contractId, signerEmail)
-    if (!urlRes.success) {
-      return { success: false, error: urlRes.error || 'Failed to generate Firma signing URL', status: urlRes.status }
+    // First attempt: follow the caller's preference (normal vs force)
+    const firstAttempt = await uploadThenSendThenUrl({ forceUpload: shouldForceUploadInitial })
+    if (firstAttempt.success) return firstAttempt
+
+    // Reliability hardening: if the vendor says there are no recipients (or link generation fails),
+    // retry once with a forced re-upload so recipients/fields are baked into the signing request.
+    const errMsg = String(firstAttempt.error || '').toLowerCase()
+    const looksLikeMissingRecipients = errMsg.includes('no recipients') || errMsg.includes('no signers found')
+    const looksLikeNeedsReupload = errMsg.includes('re-upload') || errMsg.includes('reupload') || errMsg.includes('reset')
+
+    if (!shouldForceUploadInitial && (looksLikeMissingRecipients || looksLikeNeedsReupload)) {
+      const retry = await uploadThenSendThenUrl({ forceUpload: true })
+      if (retry.success) return retry
+      return retry
     }
 
-    const signingUrl = String((urlRes.data as any)?.signing_url || '')
-    if (!signingUrl) {
-      return { success: false, error: 'Signing URL missing in response', status: 500 }
-    }
-
-    return { success: true, data: { signing_url: signingUrl }, status: 200 }
+    return firstAttempt
   }
 
   async getTenantAiPolicy(): Promise<ApiResponse<TenantAiPolicy>> {

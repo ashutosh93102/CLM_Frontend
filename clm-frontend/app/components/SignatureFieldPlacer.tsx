@@ -69,6 +69,10 @@ export default function SignatureFieldPlacer({
   onCancel,
   onSave,
 }: Props) {
+  // Reduce default zoom so the PDF isn't overly magnified.
+  // (User feedback: ~30%+ less zoom)
+  const DEFAULT_ZOOM_FACTOR = 0.65;
+
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -77,6 +81,14 @@ export default function SignatureFieldPlacer({
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  const pdfjsRef = useRef<any>(null);
+  const pdfDocRef = useRef<any>(null);
+  const loadingTaskRef = useRef<any>(null);
+  const renderTaskRef = useRef<any>(null);
+  const renderSeqRef = useRef(0);
+
+  const [containerWidth, setContainerWidth] = useState<number>(0);
 
   const [pagePx, setPagePx] = useState<{ w: number; h: number }>({ w: 800, h: 1035 });
 
@@ -113,61 +125,102 @@ export default function SignatureFieldPlacer({
 
   const visiblePlacements = useMemo(() => placements.filter((p) => (p.page_number || 1) === page), [placements, page]);
 
+  // Track container width (used to scale PDF rendering) and trigger re-render.
+  useEffect(() => {
+    if (!open) return;
+    const el = containerRef.current;
+    if (!el) return;
+
+    const update = () => setContainerWidth(el.clientWidth || 0);
+    update();
+
+    const ro = new ResizeObserver(() => update());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [open]);
+
+  // Load the PDF document once per open/pdfUrl. Keep it in a ref.
   useEffect(() => {
     if (!open) return;
     if (!pdfUrl) return;
 
     let cancelled = false;
 
+    const cleanup = async () => {
+      const rt = renderTaskRef.current;
+      renderTaskRef.current = null;
+      if (rt) {
+        try {
+          rt.cancel();
+        } catch {
+          // ignore
+        }
+        try {
+          await rt.promise;
+        } catch {
+          // ignore
+        }
+      }
+
+      const doc = pdfDocRef.current;
+      pdfDocRef.current = null;
+      if (doc) {
+        try {
+          await doc.destroy();
+        } catch {
+          // ignore
+        }
+      }
+
+      const lt = loadingTaskRef.current;
+      loadingTaskRef.current = null;
+      if (lt) {
+        try {
+          await lt.destroy();
+        } catch {
+          // ignore
+        }
+      }
+    };
+
     const run = async () => {
       setLoading(true);
       setLoadError(null);
 
+      await cleanup();
+
       try {
-        // Dynamic import so this stays client-only and avoids SSR bundling issues.
         const pdfjs = await import('pdfjs-dist');
+        if (cancelled) return;
+        pdfjsRef.current = pdfjs;
+
         (pdfjs as any).GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
 
-        const loadingTask = (pdfjs as any).getDocument(pdfUrl);
-        const doc = await loadingTask.promise;
-        if (cancelled) return;
-
-        setNumPages(doc.numPages || 1);
-        setPage((p) => clamp(p, 1, doc.numPages || 1));
-
-        const renderPage = async (pageNumber: number) => {
-          const pg = await doc.getPage(pageNumber);
-          if (cancelled) return;
-
-          const containerWidth = containerRef.current?.clientWidth || 900;
-          const viewport1 = pg.getViewport({ scale: 1 });
-          const scale = Math.max(0.5, Math.min(2.5, (containerWidth - 24) / viewport1.width));
-          const viewport = pg.getViewport({ scale });
-
-          const canvas = canvasRef.current;
-          if (!canvas) return;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) return;
-
-          canvas.width = Math.floor(viewport.width);
-          canvas.height = Math.floor(viewport.height);
-          setPagePx({ w: canvas.width, h: canvas.height });
-
-          await pg.render({ canvasContext: ctx, viewport }).promise;
-        };
-
-        await renderPage(page);
-
-        const ro = new ResizeObserver(() => {
-          void renderPage(page);
+        const task = (pdfjs as any).getDocument({
+          url: pdfUrl,
+          // Served from Next.js /public via scripts/copy-pdfjs-assets.mjs
+          standardFontDataUrl: '/pdfjs/standard_fonts/',
+          cMapUrl: '/pdfjs/cmaps/',
+          cMapPacked: true,
         });
-        if (containerRef.current) ro.observe(containerRef.current);
+        loadingTaskRef.current = task;
+        const doc = await task.promise;
+        if (cancelled) {
+          try {
+            await doc.destroy();
+          } catch {
+            // ignore
+          }
+          return;
+        }
 
-        return () => ro.disconnect();
+        pdfDocRef.current = doc;
+        setNumPages(doc.numPages || 1);
+        setPage((p) => clamp(p || 1, 1, doc.numPages || 1));
       } catch (e) {
-        setLoadError(e instanceof Error ? e.message : 'Failed to load PDF');
+        if (!cancelled) setLoadError(e instanceof Error ? e.message : 'Failed to load PDF');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
@@ -175,7 +228,80 @@ export default function SignatureFieldPlacer({
 
     return () => {
       cancelled = true;
+      void cleanup();
     };
+  }, [open, pdfUrl]);
+
+  // Render the currently selected page into the shared canvas.
+  useEffect(() => {
+    if (!open) return;
+    if (loadError) return;
+    const doc = pdfDocRef.current;
+    if (!doc) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    let cancelled = false;
+    const seq = ++renderSeqRef.current;
+
+    const run = async () => {
+      const prev = renderTaskRef.current;
+      if (prev) {
+        try {
+          prev.cancel();
+        } catch {
+          // ignore
+        }
+        try {
+          await prev.promise;
+        } catch {
+          // ignore
+        }
+      }
+
+      const pg = await doc.getPage(page);
+      if (cancelled || renderSeqRef.current !== seq) return;
+
+      const containerW = containerWidth || containerRef.current?.clientWidth || 980;
+      const viewport1 = pg.getViewport({ scale: 1 });
+      const fitWidthScale = (Math.max(360, containerW) - 24) / viewport1.width;
+      const scale = Math.max(0.25, Math.min(2.25, fitWidthScale * DEFAULT_ZOOM_FACTOR));
+      const viewport = pg.getViewport({ scale });
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      canvas.width = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+      setPagePx({ w: canvas.width, h: canvas.height });
+
+      const task = pg.render({ canvasContext: ctx, viewport });
+      renderTaskRef.current = task;
+
+      try {
+        await task.promise;
+      } catch (e: any) {
+        // Expected when we cancel on resize/page change.
+        const name = String(e?.name || '');
+        const msg = String(e?.message || '');
+        const isCancel = name.toLowerCase().includes('cancel') || msg.toLowerCase().includes('cancel');
+        if (!isCancel && !cancelled) {
+          setLoadError(msg || 'Failed to render PDF');
+        }
+      }
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, page, containerWidth, loadError]);
+
+  useEffect(() => {
+    // Reset error state when reopened
+    if (!open) return;
+    setSaveError(null);
+    setLoadError(null);
   }, [open, pdfUrl, page]);
 
   const updatePlacement = (recipientIndex: number, patch: Partial<SignatureFieldPlacement>) => {
@@ -215,58 +341,72 @@ export default function SignatureFieldPlacer({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-6xl overflow-hidden rounded-xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b px-5 py-3">
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-black/40" onClick={() => (!saving ? onCancel() : undefined)} />
+      <div className="relative w-full max-w-6xl max-h-[92vh] bg-white rounded-[28px] border border-black/10 shadow-2xl overflow-hidden flex flex-col">
+        <div className="px-6 pt-6 pb-4 border-b border-black/5 flex items-start justify-between gap-3">
           <div>
-            <div className="text-sm font-semibold text-gray-900">Place signature fields</div>
-            <div className="text-xs text-gray-500">Drag and resize. Positions are saved per template and used by Firma.</div>
+            <p className="text-lg font-bold text-[#111827]">Place signature fields</p>
+            <p className="text-xs text-black/45 mt-1">Drag and resize. Positions are saved per template and used by Firma.</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="rounded-md border px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
               onClick={onCancel}
               disabled={saving}
+              className="h-10 px-4 rounded-full bg-white border border-black/10 text-sm font-semibold text-[#0F141F] hover:bg-black/5 disabled:opacity-60"
             >
               Cancel
             </button>
             <button
               type="button"
-              className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
               onClick={handleSave}
               disabled={saving || loading || !!loadError}
+              className="h-10 px-4 rounded-full bg-[#0F141F] text-white text-sm font-semibold hover:bg-[#0F141F]/90 disabled:opacity-60"
             >
               {saving ? 'Saving…' : 'Save & Continue'}
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={saving}
+              className="w-10 h-10 rounded-full hover:bg-black/5 text-black/45"
+              aria-label="Close"
+            >
+              <svg className="w-6 h-6 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-0 md:grid-cols-[280px_1fr]">
-          <div className="border-b md:border-b-0 md:border-r p-4">
+        <div className="flex-1 min-h-0 grid grid-cols-1 gap-0 md:grid-cols-[280px_1fr]">
+          <div className="border-b md:border-b-0 md:border-r border-black/5 p-5 bg-[#F6F3ED] overflow-auto">
             <div className="mb-3 flex items-center justify-between">
-              <div className="text-sm font-medium text-gray-900">Signers</div>
-              <div className="text-xs text-gray-500">Page {page}/{numPages}</div>
+              <div className="text-sm font-semibold text-[#111827]">Signers</div>
+              <div className="text-xs text-black/45">
+                Page {page}/{numPages}
+              </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               {signers.map((s, idx) => {
                 const p = placements.find((pp) => pp.recipient_index === idx);
                 const color = palette[idx % palette.length];
                 return (
-                  <div key={`${s.email}-${idx}`} className="rounded-lg border p-3">
+                  <div key={`${s.email}-${idx}`} className="rounded-2xl border border-black/10 bg-white p-4">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="truncate text-sm font-medium text-gray-900">{s.name || `Signer ${idx + 1}`}</div>
-                        <div className="truncate text-xs text-gray-500">{s.email}</div>
+                        <div className="truncate text-sm font-semibold text-[#111827]">{s.name || `Signer ${idx + 1}`}</div>
+                        <div className="truncate text-xs text-black/45">{s.email}</div>
                       </div>
                       <div className="h-3 w-3 flex-none rounded" style={{ background: color }} />
                     </div>
 
                     <div className="mt-2 flex items-center gap-2">
-                      <label className="text-xs text-gray-600">Page</label>
+                      <label className="text-xs text-black/60">Page</label>
                       <select
-                        className="w-full rounded-md border px-2 py-1 text-sm"
+                        className="w-full h-9 rounded-2xl bg-white border border-black/10 px-3 text-sm outline-none"
                         value={p?.page_number || 1}
                         onChange={(e) => updatePlacement(idx, { page_number: Number(e.target.value) || 1 })}
                       >
@@ -278,13 +418,13 @@ export default function SignatureFieldPlacer({
                       </select>
                     </div>
 
-                    <div className="mt-2 text-xs text-gray-500">
+                    <div className="mt-2 text-[11px] text-black/45">
                       x={p?.position.x.toFixed(1)}%, y={p?.position.y.toFixed(1)}%, w={p?.position.width.toFixed(1)}%, h={p?.position.height.toFixed(1)}%
                     </div>
 
                     <button
                       type="button"
-                      className="mt-2 w-full rounded-md border px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                      className="mt-3 w-full h-9 rounded-full bg-white border border-black/10 text-sm font-semibold text-[#0F141F] hover:bg-black/5"
                       onClick={() => setPage(p?.page_number || 1)}
                     >
                       Jump to field
@@ -294,18 +434,23 @@ export default function SignatureFieldPlacer({
               })}
             </div>
 
-            {saveError ? <div className="mt-3 text-sm text-red-600">{saveError}</div> : null}
+            {saveError ? <div className="mt-3 text-sm text-rose-600">{saveError}</div> : null}
           </div>
 
-          <div className="p-4">
-            <div className="mb-3 flex items-center justify-between">
+          <div className="p-5 overflow-auto">
+            <div className="mb-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <button type="button" className="rounded-md border px-3 py-1.5 text-sm hover:bg-gray-50" onClick={handlePrev} disabled={page <= 1}>
+                <button
+                  type="button"
+                  className="h-9 px-3 rounded-full bg-white border border-black/10 text-sm font-semibold text-[#0F141F] hover:bg-black/5 disabled:opacity-60"
+                  onClick={handlePrev}
+                  disabled={page <= 1}
+                >
                   Prev
                 </button>
                 <button
                   type="button"
-                  className="rounded-md border px-3 py-1.5 text-sm hover:bg-gray-50"
+                  className="h-9 px-3 rounded-full bg-white border border-black/10 text-sm font-semibold text-[#0F141F] hover:bg-black/5 disabled:opacity-60"
                   onClick={handleNext}
                   disabled={page >= numPages}
                 >
@@ -313,18 +458,18 @@ export default function SignatureFieldPlacer({
                 </button>
               </div>
 
-              <div className="text-xs text-gray-500">Drag fields on the document</div>
+              <div className="text-xs text-black/45">Drag fields on the document</div>
             </div>
 
             {loadError ? (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{loadError}</div>
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{loadError}</div>
             ) : (
-              <div ref={containerRef} className="relative mx-auto w-full max-w-[980px] overflow-auto rounded-lg border bg-gray-50 p-3">
-                <div className="relative inline-block bg-white">
+              <div ref={containerRef} className="relative mx-auto w-full max-w-[980px] rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
+                <div className="relative inline-block bg-white rounded-xl">
                   <canvas ref={canvasRef} className="block" />
 
                   {loading ? (
-                    <div className="absolute inset-0 flex items-center justify-center bg-white/70 text-sm text-gray-700">Rendering…</div>
+                    <div className="absolute inset-0 flex items-center justify-center bg-white/70 text-sm text-black/60">Rendering…</div>
                   ) : null}
 
                   {/* Overlay */}
@@ -357,11 +502,11 @@ export default function SignatureFieldPlacer({
                           enableResizing
                         >
                           <div
-                            className="h-full w-full rounded-md border bg-white/70 px-2 py-1 text-xs font-medium"
+                            className="h-full w-full rounded-2xl border bg-white/80 px-3 py-2 text-xs font-semibold shadow-sm"
                             style={{ borderColor: color, color }}
                           >
                             <div className="truncate">{label}</div>
-                            <div className="mt-0.5 text-[10px] font-normal text-gray-600">Drag / resize</div>
+                            <div className="mt-0.5 text-[10px] font-normal text-black/45">Drag / resize</div>
                           </div>
                         </Rnd>
                       );
@@ -373,8 +518,8 @@ export default function SignatureFieldPlacer({
           </div>
         </div>
 
-        <div className="border-t px-5 py-3">
-          <div className="text-xs text-gray-500">
+        <div className="border-t border-black/5 px-6 py-4">
+          <div className="text-xs text-black/45">
             Coordinates are stored as percentages (0–100) so they’re stable across different PDF sizes.
           </div>
         </div>
