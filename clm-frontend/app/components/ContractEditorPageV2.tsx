@@ -69,33 +69,31 @@ const ContractEditorPageV2: React.FC = () => {
   const snapshotTimerRef = useRef<number | null>(null);
   const snapshotKey = useMemo(
     () => (contractId ? `clm:contractEditor:snapshot:v2:${contractId}` : null),
-      // Firma flow is intentionally simplified: we always invite everyone at once.
-      const effectiveSigningOrder: 'sequential' | 'parallel' = signProvider === 'firma' ? 'parallel' : signingOrder;
     [contractId]
   );
 
-            signing_order: effectiveSigningOrder,
+  // E-sign
   const [signOpen, setSignOpen] = useState(false);
   const [signers, setSigners] = useState<SignerDraft[]>([{ email: '', name: '' }]);
   const [signProvider, setSignProvider] = useState<'firma' | 'signnow'>('firma');
   const [signingOrder, setSigningOrder] = useState<'sequential' | 'parallel'>('sequential');
   const [signing, setSigning] = useState(false);
   const [signError, setSignError] = useState<string | null>(null);
-              signing_order: 'parallel',
+  const [signingUrl, setSigningUrl] = useState<string | null>(null);
   const [signStatusLoading, setSignStatusLoading] = useState(false);
   const [signStatus, setSignStatus] = useState<any | null>(null);
   const [placerOpen, setPlacerOpen] = useState(false);
   const [placerPdfUrl, setPlacerPdfUrl] = useState<string | null>(null);
-              signing_order: effectiveSigningOrder,
+  const [placerTemplateFilename, setPlacerTemplateFilename] = useState<string | null>(null);
   const [placerInitial, setPlacerInitial] = useState<SignatureFieldPlacement[] | null>(null);
   const pendingFirmaStartRef = useRef<{
     contract_id: string;
     signers: Array<{ email: string; name: string }>;
-        signing_order: 'parallel',
+    signing_order: 'sequential' | 'parallel';
   } | null>(null);
 
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-semibold text-[#111827]">E-sign provider</div>
+  const closePlacer = () => {
+    setPlacerOpen(false);
     setPlacerTemplateFilename(null);
     setPlacerInitial(null);
     pendingFirmaStartRef.current = null;
@@ -106,39 +104,30 @@ const ContractEditorPageV2: React.FC = () => {
         } catch {
           // ignore
         }
-                  {signProvider === 'signnow' ? (
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-sm font-semibold text-[#111827]">Signing order</div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setSigningOrder('sequential')}
-                          className={`h-8 px-3 rounded-full text-xs font-semibold border ${
-                            signingOrder === 'sequential'
-                              ? 'bg-[#0F141F] text-white border-[#0F141F]'
-                              : 'bg-white text-black/70 border-black/10 hover:bg-black/5'
-                          }`}
-                        >
-                          Sequential
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setSigningOrder('parallel')}
-                          className={`h-8 px-3 rounded-full text-xs font-semibold border ${
-                            signingOrder === 'parallel'
-                              ? 'bg-[#0F141F] text-white border-[#0F141F]'
-                              : 'bg-white text-black/70 border-black/10 hover:bg-black/5'
-                          }`}
-                        >
-                          Parallel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-xs text-black/50">
-                      Firma invites are sent to all signers at once.
-                    </div>
-                  )}
+      }
+      return null;
+    });
+  };
+
+  const [generationCtx, setGenerationCtx] = useState<GenerationContext | null>(null);
+  const [rehydrating, setRehydrating] = useState(false);
+  const rehydratedOnceRef = useRef(false);
+
+  const unwrapContractLike = (raw: any) => {
+    // Some backend endpoints return { contract: {...} } or { data: {...} }.
+    // Be defensive so we don't accidentally set wrapper objects as the contract.
+    return raw?.contract ?? raw?.data?.contract ?? raw?.data ?? raw;
+  };
+
+  const writeLocalSnapshot = (payload: { html: string; text: string; client_updated_at_ms: number }) => {
+    if (typeof window === 'undefined') return;
+    if (!snapshotKey) return;
+    try {
+      localStorage.setItem(
+        snapshotKey,
+        JSON.stringify({
+          html: payload.html,
+          text: payload.text,
           client_updated_at_ms: payload.client_updated_at_ms,
           saved_at_ms: Date.now(),
         })
@@ -1354,7 +1343,7 @@ const ContractEditorPageV2: React.FC = () => {
                 </div>
 
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-semibold text-[#111827]">E-sign provider</div>
+                  <div className="text-sm font-semibold text-[#111827]">Signing order</div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -1379,39 +1368,31 @@ const ContractEditorPageV2: React.FC = () => {
                       SignNow
                     </button>
                   </div>
-                </div>
-
-                {signProvider === 'signnow' ? (
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-sm font-semibold text-[#111827]">Signing order</div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setSigningOrder('sequential')}
-                        className={`h-8 px-3 rounded-full text-xs font-semibold border ${
-                          signingOrder === 'sequential'
-                            ? 'bg-[#0F141F] text-white border-[#0F141F]'
-                            : 'bg-white text-black/70 border-black/10 hover:bg-black/5'
-                        }`}
-                      >
-                        Sequential
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSigningOrder('parallel')}
-                        className={`h-8 px-3 rounded-full text-xs font-semibold border ${
-                          signingOrder === 'parallel'
-                            ? 'bg-[#0F141F] text-white border-[#0F141F]'
-                            : 'bg-white text-black/70 border-black/10 hover:bg-black/5'
-                        }`}
-                      >
-                        Parallel
-                      </button>
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSigningOrder('sequential')}
+                      className={`h-8 px-3 rounded-full text-xs font-semibold border ${
+                        signingOrder === 'sequential'
+                          ? 'bg-[#0F141F] text-white border-[#0F141F]'
+                          : 'bg-white text-black/70 border-black/10 hover:bg-black/5'
+                      }`}
+                    >
+                      Sequential
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSigningOrder('parallel')}
+                      className={`h-8 px-3 rounded-full text-xs font-semibold border ${
+                        signingOrder === 'parallel'
+                          ? 'bg-[#0F141F] text-white border-[#0F141F]'
+                          : 'bg-white text-black/70 border-black/10 hover:bg-black/5'
+                      }`}
+                    >
+                      Parallel
+                    </button>
                   </div>
-                ) : (
-                  <div className="text-xs text-black/50">Firma invites are sent to all signers at once.</div>
-                )}
+                </div>
 
                 {signError && <div className="text-xs text-rose-600">{signError}</div>}
 
