@@ -18,7 +18,6 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [localError, setLocalError] = useState('')
   const [passwordStrength, setPasswordStrength] = useState(0)
-  const [agreeTerms, setAgreeTerms] = useState(false)
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -57,11 +56,6 @@ export default function RegisterPage() {
     // Validation
     if (!fullName || !email || !password || !confirmPassword) {
       setLocalError('Please fill in all required fields')
-      return
-    }
-
-    if (!agreeTerms) {
-      setLocalError('Please agree to the Terms of Service and Privacy Policy')
       return
     }
 
@@ -265,17 +259,6 @@ export default function RegisterPage() {
             autoComplete="new-password"
           />
         </div>
-
-        <label className="flex items-start gap-2 text-xs text-gray-500">
-          <input
-            type="checkbox"
-            checked={agreeTerms}
-            onChange={(e) => setAgreeTerms(e.target.checked)}
-            className="mt-0.5 h-4 w-4 rounded border-gray-300"
-            disabled={isLoading}
-          />
-          <span>I agree to the Terms of Service and Privacy Policy.</span>
-        </label>
 
         <button
           type="submit"

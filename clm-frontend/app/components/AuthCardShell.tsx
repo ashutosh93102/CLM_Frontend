@@ -60,25 +60,6 @@ export default function AuthCardShell({
             ) : null}
 
             <div className="mt-7">{children}</div>
-
-            <p className="mt-8 text-center text-[11px] leading-relaxed text-gray-400">
-              By signing in, you agree to our{' '}
-              <Link href="/terms" className="text-gray-500 hover:text-gray-700 font-semibold">
-                Terms of Service
-              </Link>{' '}
-              and{' '}
-              <Link href="/privacy" className="text-gray-500 hover:text-gray-700 font-semibold">
-                Privacy Policy
-              </Link>
-              .
-            </p>
-          </div>
-
-          <div className="mt-6 text-center text-xs text-gray-500">
-            Need help?{' '}
-            <Link href="/contact" className="font-semibold text-gray-700 hover:underline">
-              Contact Support
-            </Link>
           </div>
         </div>
       </div>

@@ -112,11 +112,6 @@ export default function GoogleSignInButton({ clientId, disabled, onCredential, o
   return (
     <div className={isDisabled ? 'opacity-60 pointer-events-none' : ''}>
       <div ref={buttonDivRef} className="flex justify-center" />
-      {!clientId ? (
-        <p className="mt-2 text-center text-[11px] text-gray-400">
-          Set `NEXT_PUBLIC_GOOGLE_CLIENT_ID` in `CLM_Frontend/clm-frontend/.env.local` and restart `npm run dev`.
-        </p>
-      ) : null}
     </div>
   )
 }
