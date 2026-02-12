@@ -1,15 +1,14 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/app/components/DashboardLayout';
+import GovernanceDashboardAdminV2 from '@/app/components/GovernanceDashboardAdminV2';
 import { useAuth } from '@/app/lib/auth-context';
 import { ApiClient } from '@/app/lib/api-client';
-import { Shield, Users, RefreshCcw, ArrowUpRight, ArrowDownRight, Activity, Clock, FileText } from 'lucide-react';
+import { Shield, Users, RefreshCcw, ArrowUpRight, ArrowDownRight, Clock, FileText } from 'lucide-react';
 import {
   ResponsiveContainer,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -19,17 +18,6 @@ import {
 } from 'recharts';
 
 type AdminAnalytics = any;
-
-type AdminActivityItem = {
-  source: 'audit' | 'workflow' | 'signnow' | 'firma';
-  event?: string;
-  message?: string;
-  entity_type?: string;
-  entity_id?: string;
-  contract_id?: string | null;
-  user_id?: string;
-  created_at: string;
-};
 
 type AdminUserRow = {
   user_id: string;
@@ -49,11 +37,16 @@ export default function AdminPage() {
 
   const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
   const [users, setUsers] = useState<AdminUserRow[]>([]);
-  const [activity, setActivity] = useState<AdminActivityItem[]>([]);
+  const [featureUsage, setFeatureUsage] = useState<any>(null);
+  const [userRegistration, setUserRegistration] = useState<any>(null);
+  const [userFeatureUsage, setUserFeatureUsage] = useState<any>(null);
   const [query, setQuery] = useState('');
   const [allTenants, setAllTenants] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [usersLoading, setUsersLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const userSearchReqIdRef = useRef(0);
 
   const isAdmin = !!(user as any)?.is_admin;
   const isSuperAdmin = !!(user as any)?.is_superadmin;
@@ -64,34 +57,32 @@ export default function AdminPage() {
     }
   }, [isLoading, isAuthenticated, router]);
 
-  const loadAll = async () => {
+  const loadDashboard = async () => {
     setLoading(true);
     setError(null);
     try {
       const client = new ApiClient();
-      const [a, u, act] = await Promise.all([
+      const [a, fu, ur, ufu] = await Promise.all([
         client.getAdminAnalytics(),
-        client.adminListUsers({ q: query || undefined, allTenants: !!(isSuperAdmin && allTenants) }),
-        client.getAdminActivity({ limit: 60 }),
+        client.getAdminFeatureUsage(),
+        client.getAdminUserRegistration(),
+        client.getAdminUserFeatureUsage(),
       ]);
 
       if (!a.success) {
         throw new Error(a.error || 'Failed to load admin analytics');
       }
-      if (!u.success) {
-        throw new Error(u.error || 'Failed to load users');
-      }
-
-      if (!act.success) {
-        throw new Error(act.error || 'Failed to load activity');
-      }
-
       setAnalytics(a.data as any);
-      const rows = (u.data as any)?.results || [];
-      setUsers(rows);
 
-      const items = (act.data as any)?.results || [];
-      setActivity(items);
+      if (fu.success) {
+        setFeatureUsage(fu.data);
+      }
+      if (ur.success) {
+        setUserRegistration(ur.data);
+      }
+      if (ufu.success) {
+        setUserFeatureUsage(ufu.data);
+      }
     } catch (e: any) {
       setError(e?.message || 'Failed to load admin data');
     } finally {
@@ -99,12 +90,43 @@ export default function AdminPage() {
     }
   };
 
+  const loadUsers = async (q?: string) => {
+    const requestId = ++userSearchReqIdRef.current;
+    setUsersLoading(true);
+    try {
+      const client = new ApiClient();
+      const resp = await client.adminListUsers({
+        q: (q ?? query) || undefined,
+        allTenants: !!(isSuperAdmin && allTenants),
+      });
+      if (requestId !== userSearchReqIdRef.current) return; // ignore stale response
+      if (!resp.success) throw new Error(resp.error || 'Failed to load users');
+      const rows = (resp.data as any)?.results || [];
+      setUsers(rows);
+    } catch (e: any) {
+      if (requestId !== userSearchReqIdRef.current) return;
+      setError(e?.message || 'Failed to load users');
+    } finally {
+      if (requestId === userSearchReqIdRef.current) setUsersLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!isLoading && isAuthenticated && isAdmin) {
-      loadAll();
+      loadDashboard();
+      loadUsers('');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, isAuthenticated, isAdmin]);
+
+  useEffect(() => {
+    if (isLoading || !isAuthenticated || !isAdmin) return;
+    const t = setTimeout(() => {
+      loadUsers();
+    }, 250);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, allTenants, isSuperAdmin, isLoading, isAuthenticated, isAdmin]);
 
   const promote = async (row: AdminUserRow) => {
     try {
@@ -114,7 +136,7 @@ export default function AdminPage() {
       const client = new ApiClient();
       const resp = await client.adminPromoteUser({ user_id: row.user_id, allTenants: !!(isSuperAdmin && allTenants) });
       if (!resp.success) throw new Error(resp.error || 'Promotion failed');
-      await loadAll();
+      await loadUsers();
     } catch (e: any) {
       setError(e?.message || 'Promotion failed');
     } finally {
@@ -130,33 +152,13 @@ export default function AdminPage() {
       const client = new ApiClient();
       const resp = await client.adminDemoteUser({ user_id: row.user_id, allTenants: !!(isSuperAdmin && allTenants) });
       if (!resp.success) throw new Error(resp.error || 'Demotion failed');
-      await loadAll();
+      await loadUsers();
     } catch (e: any) {
       setError(e?.message || 'Demotion failed');
     } finally {
       setLoading(false);
     }
   };
-
-  const cards = useMemo(() => {
-    if (!analytics) return [];
-    return [
-      { label: 'Templates', value: analytics?.templates?.total ?? 0 },
-      { label: 'Contracts', value: analytics?.contracts?.total ?? 0 },
-      { label: 'Approvals', value: analytics?.approvals?.total ?? 0 },
-      { label: 'Signing Requests (Firma)', value: analytics?.signing_requests?.firma?.total ?? 0 },
-    ];
-  }, [analytics]);
-
-  const trendData = useMemo(() => {
-    return (analytics?.trends_last_6_months || []).map((r: any) => ({
-      label: r.label,
-      contracts: r.contracts_created ?? 0,
-      firma_sent: r.firma_sent ?? 0,
-      firma_completed: r.firma_completed ?? 0,
-      templates: r.templates_created ?? 0,
-    }));
-  }, [analytics]);
 
   const contractTypeData = useMemo(() => {
     return (analytics?.contracts?.by_contract_type || []).map((r: any) => ({
@@ -165,9 +167,6 @@ export default function AdminPage() {
     }));
   }, [analytics]);
 
-  const topTemplates = useMemo(() => {
-    return analytics?.templates?.top_templates || [];
-  }, [analytics]);
 
   const fmtSeconds = (seconds?: number | null) => {
     if (!seconds || seconds <= 0) return '—';
@@ -177,13 +176,6 @@ export default function AdminPage() {
     return `${m}m`;
   };
 
-  const sourceBadge = (source: string) => {
-    const base = 'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold';
-    if (source === 'firma') return `${base} bg-indigo-50 text-indigo-700`;
-    if (source === 'signnow') return `${base} bg-cyan-50 text-cyan-700`;
-    if (source === 'workflow') return `${base} bg-amber-50 text-amber-800`;
-    return `${base} bg-slate-100 text-slate-700`;
-  };
 
   if (isLoading) {
     return (
@@ -215,25 +207,7 @@ export default function AdminPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center">
-            <Shield className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900">Admin</h1>
-            <p className="text-slate-600 text-sm">Tenant-wide analytics + admin promotion</p>
-          </div>
-        </div>
-
-        <button
-          onClick={loadAll}
-          disabled={loading}
-          className="inline-flex items-center gap-2 rounded-2xl bg-white border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60"
-        >
-          <RefreshCcw className="w-4 h-4" />
-          Refresh
-        </button>
+      <div className="flex items-center justify-end mb-4">
       </div>
 
       {error && (
@@ -242,63 +216,53 @@ export default function AdminPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        {cards.map((c) => (
-          <div key={c.label} className="rounded-3xl bg-white border border-slate-200 p-6">
-            <p className="text-slate-500 text-sm">{c.label}</p>
-            <p className="text-4xl font-extrabold text-slate-900 mt-2">{String(c.value).padStart(2, '0')}</p>
-          </div>
-        ))}
-      </div>
+      <GovernanceDashboardAdminV2
+        analytics={analytics}
+        userRegistration={userRegistration}
+        featureUsage={featureUsage}
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
-        <div className="rounded-3xl bg-white border border-slate-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Activity className="w-5 h-5 text-slate-700" />
-              <h2 className="text-lg font-extrabold text-slate-900">Trends (6 months)</h2>
-            </div>
-          </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-                <Tooltip />
-                <Line type="monotone" dataKey="contracts" stroke="#0f172a" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="firma_sent" stroke="#4f46e5" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-          <p className="mt-3 text-xs text-slate-500">Tracks contracts created and Firma sends per month.</p>
-        </div>
-
-        <div className="rounded-3xl bg-white border border-slate-200 p-6">
-          <div className="flex items-center gap-2 mb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 mt-6">
+        <div className="lg:col-span-2 rounded-[28px] bg-white/80 border border-white shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-1">
             <FileText className="w-5 h-5 text-slate-700" />
             <h2 className="text-lg font-extrabold text-slate-900">Contracts by Type</h2>
           </div>
-          <div className="h-64">
+          <p className="text-sm text-slate-500">Top contract types by volume</p>
+          <div className="h-72 mt-4">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={contractTypeData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="contract_type" tick={{ fontSize: 12 }} interval={0} angle={-20} textAnchor="end" height={70} />
-                <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="count" fill="#0f172a" />
+              <BarChart data={contractTypeData} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E6EAF0" />
+                <XAxis
+                  dataKey="contract_type"
+                  tick={{ fontSize: 12, fill: '#94A3B8' }}
+                  interval={0}
+                  angle={-18}
+                  textAnchor="end"
+                  height={70}
+                />
+                <YAxis tick={{ fontSize: 12, fill: '#94A3B8' }} allowDecimals={false} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '1px solid #E6EAF0',
+                    borderRadius: '12px',
+                    boxShadow: '0 10px 25px rgba(15,20,31,0.08)',
+                  }}
+                />
+                <Bar dataKey="count" fill="#FF5C7A" radius={[10, 10, 2, 2]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <p className="mt-3 text-xs text-slate-500">Top 12 contract types by volume.</p>
         </div>
 
-        <div className="rounded-3xl bg-white border border-slate-200 p-6">
-          <div className="flex items-center gap-2 mb-4">
+        <div className="rounded-[28px] bg-white/80 border border-white shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-1">
             <Clock className="w-5 h-5 text-slate-700" />
             <h2 className="text-lg font-extrabold text-slate-900">Operational</h2>
           </div>
-          <div className="space-y-3">
+          <p className="text-sm text-slate-500">Quick signals for admin ops</p>
+          <div className="space-y-3 mt-5">
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">Users (active)</span>
               <span className="font-extrabold text-slate-900">
@@ -326,81 +290,6 @@ export default function AdminPage() {
               <span className="font-extrabold text-slate-900">{analytics?.activity_summary?.audit_logs_last_7d ?? 0}</span>
             </div>
           </div>
-          <p className="mt-4 text-xs text-slate-500">Quick signals for admin ops and usage.</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
-        <div className="rounded-3xl bg-white border border-slate-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-extrabold text-slate-900">Top Templates</h2>
-            <span className="text-xs text-slate-500">by contracts created</span>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left text-slate-500">
-                  <th className="py-3 pr-4">Name</th>
-                  <th className="py-3 pr-4">Type</th>
-                  <th className="py-3 pr-4">Status</th>
-                  <th className="py-3 pr-4">Contracts</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(topTemplates || []).map((t: any) => (
-                  <tr key={t.template_id} className="border-t border-slate-100">
-                    <td className="py-3 pr-4 font-medium text-slate-900">{t.name || '—'}</td>
-                    <td className="py-3 pr-4 text-slate-700">{t.contract_type || '—'}</td>
-                    <td className="py-3 pr-4 text-slate-700">{t.status || '—'}</td>
-                    <td className="py-3 pr-4 font-semibold text-slate-900">{t.contracts_count ?? 0}</td>
-                  </tr>
-                ))}
-
-                {!topTemplates?.length && (
-                  <tr>
-                    <td colSpan={4} className="py-8 text-center text-slate-500">
-                      No templates yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="rounded-3xl bg-white border border-slate-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Activity className="w-5 h-5 text-slate-700" />
-              <h2 className="text-lg font-extrabold text-slate-900">Recent Activity</h2>
-            </div>
-            <span className="text-xs text-slate-500">latest 60 events</span>
-          </div>
-
-          <div className="space-y-3 max-h-96 overflow-auto pr-1">
-            {activity.map((it, idx) => (
-              <div key={`${it.source}-${it.created_at}-${idx}`} className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className={sourceBadge(it.source)}>{it.source}</span>
-                    <span className="text-sm font-semibold text-slate-900">{it.event || it.entity_type || 'event'}</span>
-                  </div>
-                  <span className="text-xs text-slate-500">{new Date(it.created_at).toLocaleString()}</span>
-                </div>
-                <div className="mt-1 text-sm text-slate-700">{it.message || '—'}</div>
-                {(it.contract_id || it.entity_id) && (
-                  <div className="mt-2 text-xs text-slate-500">
-                    {it.contract_id ? `contract: ${it.contract_id}` : null}
-                    {it.contract_id && it.entity_id ? ' · ' : null}
-                    {it.entity_id ? `${it.entity_type || 'entity'}: ${it.entity_id}` : null}
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {!activity.length && <div className="text-sm text-slate-500">No activity yet.</div>}
-          </div>
         </div>
       </div>
 
@@ -414,9 +303,6 @@ export default function AdminPage() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') loadAll();
-              }}
               placeholder="Search users by email/name…"
               className="w-full sm:w-80 bg-white border border-slate-200 rounded-2xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-200"
             />
@@ -432,11 +318,11 @@ export default function AdminPage() {
               </label>
             )}
             <button
-              onClick={loadAll}
-              disabled={loading}
+              onClick={() => loadUsers()}
+              disabled={loading || usersLoading}
               className="w-full sm:w-auto rounded-2xl bg-slate-900 text-white px-4 py-2 text-sm font-semibold hover:bg-slate-800 disabled:opacity-60"
             >
-              Search
+              {usersLoading ? 'Searching…' : 'Search'}
             </button>
           </div>
         </div>

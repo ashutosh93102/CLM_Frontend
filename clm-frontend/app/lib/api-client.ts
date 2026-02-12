@@ -817,6 +817,18 @@ export class ApiClient {
     return this.request('POST', `${ApiClient.API_V1_PREFIX}/admin/users/demote/${queryString}`, body)
   }
 
+  async getAdminFeatureUsage(): Promise<ApiResponse> {
+    return this.request('GET', `${ApiClient.API_V1_PREFIX}/admin/feature-usage/`)
+  }
+
+  async getAdminUserRegistration(): Promise<ApiResponse> {
+    return this.request('GET', `${ApiClient.API_V1_PREFIX}/admin/user-registration/`)
+  }
+
+  async getAdminUserFeatureUsage(): Promise<ApiResponse> {
+    return this.request('GET', `${ApiClient.API_V1_PREFIX}/admin/user-feature-usage/`)
+  }
+
   // ==================== CONTRACTS ====================
   async createContract(data: Partial<Contract>): Promise<ApiResponse<Contract>> {
     return this.request('POST', `${ApiClient.API_V1_PREFIX}/contracts/`, data)
