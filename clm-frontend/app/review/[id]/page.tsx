@@ -164,22 +164,6 @@ export default function ReviewDetailPage() {
     window.open(fileUrl, '_blank', 'noopener,noreferrer');
   };
 
-  const analyzeNow = async () => {
-    if (!item) return;
-    setError(null);
-    setBusy(true);
-    try {
-      const client = new ApiClient();
-      const res = await client.analyzeReviewContract(item.id);
-      if (!res.success) throw new Error(res.error || 'Analyze failed');
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Analyze failed');
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const summary = String((analysis as any)?.summary || '').trim();
   const parties = asArray(analysis?.parties);
   const dates = asArray(analysis?.dates);
@@ -586,7 +570,7 @@ export default function ReviewDetailPage() {
     if (!Number.isFinite(pct)) return { label: 'MATCH', tone: 'slate' };
     if (pct >= 85) return { label: 'MATCH', tone: 'emerald' };
     if (pct >= 60) return { label: 'PARTIAL MATCH', tone: 'amber' };
-    return { label: 'INCOMPLETE', tone: 'rose' };
+    return { label: 'LOW MATCH', tone: 'rose' };
   };
 
   const readyLike = item?.status === 'ready';
@@ -678,17 +662,6 @@ export default function ReviewDetailPage() {
                     {String(item.status).toUpperCase()}
                   </span>
                 )}
-
-                <button
-                  type="button"
-                  onClick={analyzeNow}
-                  disabled={busy || loading}
-                  className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
-                  title="Re-run extraction + review"
-                >
-                  <RefreshCcw className="w-4 h-4" />
-                  Re-analyze
-                </button>
 
                 <div className="relative" ref={downloadRef}>
                   <button
@@ -783,11 +756,11 @@ export default function ReviewDetailPage() {
                 <ChevronDown className={`w-4 h-4 transition ${showExtractedMobile ? 'rotate-180' : 'rotate-0'}`} />
               </button>
               {readyLike && (
-                <Chip tone="emerald">AI Analysis Complete</Chip>
+                <Chip tone="emerald">Analyzed</Chip>
               )}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-[420px,1fr] xl:grid-cols-[460px,1fr] gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(480px,45%),1fr] xl:grid-cols-[minmax(540px,46%),1fr] gap-6">
               {/* Left Panel */}
               <div className={`${showExtractedMobile ? 'block' : 'hidden'} lg:block lg:sticky lg:top-6 lg:self-start anim-fade-up`}> 
                 <div className="bg-white rounded-[28px] border border-slate-200 p-6 shadow-sm max-h-[calc(100vh-140px)] overflow-auto">
@@ -818,7 +791,7 @@ export default function ReviewDetailPage() {
                     <div className="flex items-center justify-between gap-3">
                       <div className="text-sm font-extrabold text-slate-900">Analysis Summary</div>
                       <Chip tone={(String(analysisSummary?.risk_level || '').toUpperCase() === 'HIGH') ? 'rose' : (String(analysisSummary?.risk_level || '').toUpperCase() === 'MEDIUM') ? 'amber' : 'emerald'}>
-                        {String(analysisSummary?.risk_level || 'MEDIUM').toUpperCase()} RISK ({Number(analysisSummary?.risk_score || 0)}/100)
+                        {String(analysisSummary?.risk_level || 'MEDIUM').toUpperCase()} RISK
                       </Chip>
                     </div>
 
@@ -866,7 +839,7 @@ export default function ReviewDetailPage() {
                   {!readyLike && (
                     <div className="mt-4 rounded-2xl bg-amber-50 border border-amber-200 p-4">
                       <div className="text-sm font-semibold text-amber-900">Analysis pending</div>
-                      <div className="text-xs text-amber-800 mt-1">Click “Re-analyze” to run it now.</div>
+                      <div className="text-xs text-amber-800 mt-1">Processing may take a moment.</div>
                     </div>
                   )}
 
@@ -1105,7 +1078,7 @@ export default function ReviewDetailPage() {
                         {summary ? 'Summary available' : 'No summary available yet'}
                       </div>
                       {readyLike ? (
-                        <Chip tone="emerald">AI Analysis Complete</Chip>
+                        <Chip tone="emerald">Analyzed</Chip>
                       ) : (
                         <Chip tone="amber">AI Analysis Pending</Chip>
                       )}
@@ -1124,7 +1097,7 @@ export default function ReviewDetailPage() {
                   </div>
                   {!hasAnyStructured && (
                     <div className="mt-4 text-sm text-slate-600">
-                      No structured extraction found yet. Try “Re-analyze”, or upload a clearer PDF/DOCX.
+                      No structured extraction found yet. Upload a clearer PDF/DOCX and try again.
                     </div>
                   )}
                 </div>
