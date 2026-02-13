@@ -50,12 +50,21 @@ type DonutDatum = { name: string; value: number };
 
 type DashboardInsights = {
   feature_usage_30d: Array<{ key: string; count: number }>;
+  review_count_30d?: number;
+  upload_count_30d?: number;
+  repository_upload_count_30d?: number;
+  private_upload_count_30d?: number;
+  contracts_r2_upload_count_30d?: number;
+  templates_count?: number;
+  template_files_count?: number;
+  contract_templates_count?: number;
   activity_last_14_days: Array<{ date: string; count: number }>;
   contract_types_180d: Array<{ type: string; count: number }>;
   ai_tasks_by_status_180d: Array<{ status: string; count: number }>;
   reviews_by_status_180d: Array<{ status: string; count: number }>;
   calendar_by_category_180d: Array<{ category: string; count: number }>;
   calendar_upcoming_30d: number;
+  calendar_upcoming_365d?: number;
   esign_by_provider_180d: Array<{ provider: string; count: number }>;
   firma_by_status_180d?: Array<{ status: string; count: number }>;
   signnow_by_status_180d?: Array<{ status: string; count: number }>;
@@ -382,6 +391,14 @@ const DashboardPageV2: React.FC = () => {
     return acc + (isUploadish ? (r.count || 0) : 0);
   }, 0);
 
+  const uploadCount30d = typeof insights?.upload_count_30d === 'number' ? insights.upload_count_30d : uploadFeatureUsageCount;
+  const templatesCount = (() => {
+    if (typeof insights?.templates_count === 'number') return insights.templates_count;
+    const a = typeof insights?.template_files_count === 'number' ? insights.template_files_count : 0;
+    const b = typeof insights?.contract_templates_count === 'number' ? insights.contract_templates_count : 0;
+    return a + b;
+  })();
+
   const aiGenerationsUsed = (insights?.ai_tasks_by_status_180d || []).reduce((acc, r) => acc + (r.count || 0), 0);
 
   const contractTypeData = toDonutData(
@@ -400,6 +417,11 @@ const DashboardPageV2: React.FC = () => {
   }, 0);
   const esignWaiting = Math.max(0, esignTotal - esignCompleted);
   const completionRate = esignTotal > 0 ? Math.round((esignCompleted / esignTotal) * 100) : 0;
+
+  const upcomingEventsKpi =
+    typeof insights?.calendar_upcoming_365d === 'number'
+      ? insights.calendar_upcoming_365d
+      : (insights?.calendar_upcoming_30d ?? 0);
 
   const formatReminderStamp = (iso: string, allDay?: boolean) => {
     const d = new Date(iso);
@@ -435,7 +457,6 @@ const DashboardPageV2: React.FC = () => {
             <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
               <FileText className="w-5 h-5" />
             </div>
-            <span className="text-[11px] bg-white/20 px-2 py-1 rounded-full font-bold">+12%</span>
           </div>
           <p className="mt-5 text-4xl font-extrabold">{stats.total}</p>
           <p className="text-sm text-white/90">Total Contracts</p>
@@ -446,14 +467,14 @@ const DashboardPageV2: React.FC = () => {
             <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center">
               <ClipboardCheck className="w-5 h-5 text-amber-600" />
             </div>
-            <span className="text-[11px] bg-amber-50 border border-amber-100 text-amber-700 px-2 py-1 rounded-full font-bold">Last 30d</span>
+            <span className="text-[11px] bg-amber-50 border border-amber-100 text-amber-700 px-2 py-1 rounded-full font-bold">Metrics</span>
           </div>
 
           <div className="mt-5 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-amber-400" />
-                <span className="text-sm font-extrabold text-slate-900">Review feature usage</span>
+                <span className="text-sm font-extrabold text-slate-900">Review usage</span>
               </div>
               <span className="text-2xl font-extrabold text-slate-900">{reviewFeatureUsageCount}</span>
             </div>
@@ -461,15 +482,23 @@ const DashboardPageV2: React.FC = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="w-2 h-2 rounded-full bg-slate-400" />
-                <span className="text-sm font-extrabold text-slate-900 truncate">Upload document usage</span>
+                <span className="text-sm font-extrabold text-slate-900 truncate">Uploads (30d)</span>
               </div>
-              <span className="text-2xl font-extrabold text-slate-900">{uploadFeatureUsageCount}</span>
+              <span className="text-2xl font-extrabold text-slate-900">{uploadCount30d}</span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-2 h-2 rounded-full bg-rose-400" />
+                <span className="text-sm font-extrabold text-slate-900 truncate">Templates (active)</span>
+              </div>
+              <span className="text-2xl font-extrabold text-slate-900">{templatesCount}</span>
             </div>
           </div>
 
           <div className="mt-4 flex items-center gap-2 text-xs font-semibold text-slate-500">
             <Upload className="w-4 h-4" />
-            Based on your activity logs
+            Uploads include private + repository
           </div>
         </div>
 
@@ -488,9 +517,9 @@ const DashboardPageV2: React.FC = () => {
             <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center">
               <CalendarDays className="w-5 h-5 text-blue-600" />
             </div>
-            <span className="text-[11px] bg-blue-50 border border-blue-100 text-blue-700 px-2 py-1 rounded-full font-bold">Next: 30d</span>
+            <span className="text-[11px] bg-blue-50 border border-blue-100 text-blue-700 px-2 py-1 rounded-full font-bold">Next: 12mo</span>
           </div>
-          <p className="mt-5 text-4xl font-extrabold text-slate-900">{insights?.calendar_upcoming_30d ?? 0}</p>
+          <p className="mt-5 text-4xl font-extrabold text-slate-900">{upcomingEventsKpi}</p>
           <p className="text-sm text-slate-500">Upcoming Events</p>
         </div>
       </div>
