@@ -1,9 +1,14 @@
 import Image from '@tiptap/extension-image';
 import { mergeAttributes } from '@tiptap/core';
+import { ReactNodeViewRenderer } from '@tiptap/react';
+
+import ResizableImageNodeView from './ResizableImageNodeView';
 
 export type ImageAlign = 'left' | 'center' | 'right';
 
 export const ResizableImageExtension = Image.extend({
+  draggable: true,
+
   addAttributes() {
     return {
       ...this.parent?.(),
@@ -21,8 +26,8 @@ export const ResizableImageExtension = Image.extend({
   },
 
   renderHTML({ HTMLAttributes }) {
-    const align = (HTMLAttributes as any)?.align as ImageAlign | undefined;
-    const width = (HTMLAttributes as any)?.width as string | undefined;
+    const align = (HTMLAttributes as { align?: ImageAlign })?.align;
+    const width = (HTMLAttributes as { width?: string })?.width;
 
     const baseStyleParts: string[] = ['max-width: 100%', 'height: auto', 'display: block'];
     if (width) baseStyleParts.push(`width: ${width}`);
@@ -48,6 +53,10 @@ export const ResizableImageExtension = Image.extend({
         }
       ),
     ];
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(ResizableImageNodeView);
   },
 
   addCommands() {

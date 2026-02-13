@@ -15,7 +15,6 @@ import {
   List,
   ListOrdered,
   Redo2,
-  RotateCcw,
   Strikethrough,
   Subscript as SubscriptIcon,
   Superscript as SuperscriptIcon,
@@ -67,34 +66,13 @@ const FONT_FAMILIES: Array<{ label: string; value: string }> = [
 
 const FONT_SIZES: number[] = [12, 13, 14, 16, 18, 20, 24, 28, 32];
 
-function ToolbarButton({
-  active,
-  disabled,
-  label,
-  onClick,
-  children,
-}: {
-  active?: boolean;
-  disabled?: boolean;
-  label: string;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      onClick={onClick}
-      disabled={disabled}
-      className={`h-8 min-w-8 px-2 rounded-full border text-sm font-semibold transition ${
-        active ? 'bg-[#0F141F] text-white border-[#0F141F]' : 'bg-white text-black/70 border-black/10 hover:bg-black/5'
-      } disabled:opacity-60 disabled:hover:bg-white`}
-    >
-      {children}
-    </button>
-  );
-}
+type TiptapImageAttrs = {
+  src?: string;
+  alt?: string;
+  title?: string;
+  width?: string;
+  align?: ImageAlign;
+};
 
 export default function RichTextEditor({
   valueHtml,
@@ -111,7 +89,6 @@ export default function RichTextEditor({
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [imageOpen, setImageOpen] = useState(false);
-  const [imageUrl, setImageUrl] = useState('');
   const imageFileRef = useRef<HTMLInputElement | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
 
@@ -268,16 +245,6 @@ export default function RichTextEditor({
     setLinkUrl('');
   };
 
-  const insertImageByUrl = (src: string) => {
-    if (!editor) return;
-    const url = src.trim();
-    if (!url) return;
-    editor.chain().focus().setImage({ src: url } as any).run();
-    editor.chain().focus().setImageWidth('60%').setImageAlign('center').run();
-    setImageOpen(false);
-    setImageUrl('');
-  };
-
   const insertPlaceholder = () => {
     if (!editor) return;
     // Common contract placeholder format.
@@ -293,15 +260,31 @@ export default function RichTextEditor({
       r.readAsDataURL(file);
     });
     if (!dataUrl.startsWith('data:image/')) return;
-    editor.chain().focus().setImage({ src: dataUrl } as any).run();
+
+    // `setImage` is provided by our image extension.
+    editor.chain().focus().setImage({ src: dataUrl }).run();
     editor.chain().focus().setImageWidth('60%').setImageAlign('center').run();
     setImageOpen(false);
-    setImageUrl('');
   };
 
   const isImageActive = !!editor?.isActive('image');
-  const currentImageAlign = (editor?.getAttributes('image') as any)?.align as ImageAlign | undefined;
-  const currentImageWidth = (editor?.getAttributes('image') as any)?.width as string | undefined;
+  const imageAttrs = (editor?.getAttributes('image') || {}) as TiptapImageAttrs;
+  const currentImageAlign = imageAttrs.align;
+  const currentImageWidth = imageAttrs.width;
+
+  const currentImageWidthPercent = (() => {
+    const raw = String(currentImageWidth || '').trim();
+    const m = raw.match(/^([0-9]+(?:\.[0-9]+)?)%$/);
+    const parsed = m ? Number(m[1]) : NaN;
+    const base = Number.isFinite(parsed) ? parsed : 60;
+    return Math.max(10, Math.min(100, Math.round(base)));
+  })();
+
+  const setImageWidthPercent = (next: number) => {
+    if (!editor) return;
+    const v = Math.max(10, Math.min(100, Math.round(next)));
+    editor.chain().focus().setImageWidth(`${v}%`).run();
+  };
 
   return (
     <div className={className}>
@@ -423,10 +406,8 @@ export default function RichTextEditor({
             disabled={disabledUi}
             onClick={() => {
               if (disabledUi) return;
-              setImageUrl('');
               setImageOpen((v) => !v);
               setLinkOpen(false);
-              setMoreOpen(false);
             }}
           >
             <ImagePlus className="w-4 h-4" />
@@ -605,19 +586,57 @@ export default function RichTextEditor({
                 <Eraser className="w-4 h-4" />
               </ToolbarIconButton>
 
-              <ToolbarIconButton
-                label="Reset styles"
-                disabled={disabledUi}
-                onClick={() => editor?.chain().focus().unsetAllMarks().setParagraph().run()}
-              >
-                <RotateCcw className="w-4 h-4" />
-              </ToolbarIconButton>
-
               {isImageActive ? (
                 <>
                   <div className={`w-px h-6 ${toolbarIsDark ? 'bg-white/15' : 'bg-black/10'} mx-1`} />
 
                   <div className={`text-xs font-semibold ${toolbarIsDark ? 'text-white/80' : 'text-black/50'}`}>Image</div>
+
+                  <button
+                    type="button"
+                    className={`h-9 w-9 rounded-full border text-sm font-bold transition ${
+                      toolbarIsDark
+                        ? 'border-white/10 bg-transparent text-white hover:bg-white/10'
+                        : 'border-black/10 bg-white text-black/70 hover:bg-black/5'
+                    }`}
+                    onClick={() => setImageWidthPercent(currentImageWidthPercent - 10)}
+                    disabled={disabledUi}
+                    aria-label="Reduce image size"
+                    title="Reduce image size"
+                  >
+                    −
+                  </button>
+
+                  <div className={`text-xs font-semibold tabular-nums ${toolbarIsDark ? 'text-white/80' : 'text-black/50'}`}>
+                    {currentImageWidthPercent}%
+                  </div>
+
+                  <button
+                    type="button"
+                    className={`h-9 w-9 rounded-full border text-sm font-bold transition ${
+                      toolbarIsDark
+                        ? 'border-white/10 bg-transparent text-white hover:bg-white/10'
+                        : 'border-black/10 bg-white text-black/70 hover:bg-black/5'
+                    }`}
+                    onClick={() => setImageWidthPercent(currentImageWidthPercent + 10)}
+                    disabled={disabledUi}
+                    aria-label="Increase image size"
+                    title="Increase image size"
+                  >
+                    +
+                  </button>
+
+                  <input
+                    type="range"
+                    min={10}
+                    max={100}
+                    step={5}
+                    value={currentImageWidthPercent}
+                    onChange={(e) => setImageWidthPercent(Number(e.target.value))}
+                    disabled={disabledUi}
+                    className="w-36"
+                    aria-label="Image size"
+                  />
 
                   <select
                     className={`h-9 rounded-full border px-3 text-sm outline-none ${
@@ -708,20 +727,6 @@ export default function RichTextEditor({
         {imageOpen && !disabledUi ? (
           <div className="mt-3 flex items-center gap-2">
             <input
-              className="h-10 w-full rounded-2xl border border-black/10 bg-white px-4 text-sm outline-none"
-              placeholder="https://example.com/image.png"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') insertImageByUrl(imageUrl);
-                if (e.key === 'Escape') {
-                  setImageOpen(false);
-                  setImageUrl('');
-                }
-              }}
-            />
-
-            <input
               ref={imageFileRef}
               type="file"
               accept="image/*"
@@ -744,16 +749,8 @@ export default function RichTextEditor({
             <button
               type="button"
               className="h-10 px-4 rounded-full bg-white border border-black/10 text-black/70 text-sm font-semibold"
-              onClick={() => insertImageByUrl(imageUrl)}
-            >
-              Insert URL
-            </button>
-            <button
-              type="button"
-              className="h-10 px-4 rounded-full bg-white border border-black/10 text-black/70 text-sm font-semibold"
               onClick={() => {
                 setImageOpen(false);
-                setImageUrl('');
               }}
             >
               Cancel

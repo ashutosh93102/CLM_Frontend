@@ -46,7 +46,6 @@ const ContractEditorPageV2: React.FC = () => {
   const [templatesError, setTemplatesError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<TemplateListItem[]>([]);
   const [templateSearch, setTemplateSearch] = useState('');
-  const [templateInsertMode, setTemplateInsertMode] = useState<'replace' | 'cursor'>('replace');
   const [templateApplying, setTemplateApplying] = useState(false);
 
   const editorApiRef = useRef<Editor | null>(null);
@@ -164,9 +163,7 @@ const ContractEditorPageV2: React.FC = () => {
       const obj = JSON.parse(raw);
       if (obj && typeof obj === 'object') {
         const search = typeof (obj as any).templateSearch === 'string' ? (obj as any).templateSearch : '';
-        const mode = (obj as any).templateInsertMode === 'cursor' ? 'cursor' : 'replace';
         setTemplateSearch(search);
-        setTemplateInsertMode(mode);
       }
     } catch {
       // ignore
@@ -183,14 +180,13 @@ const ContractEditorPageV2: React.FC = () => {
         key,
         JSON.stringify({
           templateSearch,
-          templateInsertMode,
           updatedAt: Date.now(),
         })
       );
     } catch {
       // ignore
     }
-  }, [contractId, templateSearch, templateInsertMode]);
+  }, [contractId, templateSearch]);
 
   const escapeHtml = (s: string) =>
     (s || '')
@@ -652,15 +648,9 @@ const ContractEditorPageV2: React.FC = () => {
       const content = String((res.data as any)?.content || '');
       const nextHtml = textToHtml(content);
 
-      if (templateInsertMode === 'replace') {
-        ed.commands.setContent(nextHtml, { emitUpdate: false });
-        setEditorHtml(nextHtml);
-        setEditorText(content);
-      } else {
-        ed.chain().focus().insertContent(nextHtml).run();
-        setEditorHtml(ed.getHTML());
-        setEditorText(ed.getText());
-      }
+      ed.commands.setContent(nextHtml, { emitUpdate: false });
+      setEditorHtml(nextHtml);
+      setEditorText(content);
 
       setDirty(true);
       setEditTick((t) => t + 1);
@@ -1206,32 +1196,8 @@ const ContractEditorPageV2: React.FC = () => {
                   />
                 </div>
 
-                <div className="mt-3 flex items-center justify-between gap-3">
-                  <div className="text-xs text-black/45 font-semibold">Insert mode</div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setTemplateInsertMode('replace')}
-                      className={`h-8 px-3 rounded-full text-xs font-semibold border ${
-                        templateInsertMode === 'replace'
-                          ? 'bg-[#0F141F] text-white border-[#0F141F]'
-                          : 'bg-white text-black/70 border-black/10 hover:bg-black/5'
-                      }`}
-                    >
-                      Replace
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTemplateInsertMode('cursor')}
-                      className={`h-8 px-3 rounded-full text-xs font-semibold border ${
-                        templateInsertMode === 'cursor'
-                          ? 'bg-[#0F141F] text-white border-[#0F141F]'
-                          : 'bg-white text-black/70 border-black/10 hover:bg-black/5'
-                      }`}
-                    >
-                      At cursor
-                    </button>
-                  </div>
+                <div className="mt-3">
+                  <div className="text-xs text-black/45 font-semibold">Applying a template replaces the editor content.</div>
                 </div>
 
                 {templatesError && <div className="text-xs text-rose-600 mt-3">{templatesError}</div>}
@@ -1334,13 +1300,6 @@ const ContractEditorPageV2: React.FC = () => {
                       </button>
                     </div>
                   ))}
-                </div>
-
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-semibold text-[#111827]">Provider</div>
-                  <div className="h-8 px-3 rounded-full text-xs font-semibold border bg-[#0F141F] text-white border-[#0F141F]">
-                    Firma.dev
-                  </div>
                 </div>
 
                 {signError && <div className="text-xs text-rose-600">{signError}</div>}

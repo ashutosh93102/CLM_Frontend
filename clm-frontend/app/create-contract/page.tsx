@@ -14,7 +14,7 @@ import {
 } from '../lib/api-client';
 import DashboardLayout from '../components/DashboardLayout';
 import RichTextEditor from '../components/RichTextEditor';
-import { Bell, ChevronLeft, FileText, Search, Sparkles, Settings2, ZoomIn, ZoomOut } from 'lucide-react';
+import { ChevronLeft, FileText, Search, Sparkles } from 'lucide-react';
 import { sanitizeEditorHtml } from '../lib/sanitize-html';
 
 // Types
@@ -115,7 +115,6 @@ const CreateContractInner = () => {
 
   const [previewText, setPreviewText] = useState<string>('');
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewZoom, setPreviewZoom] = useState(1);
 
   const [templateDraftUpdatedAt, setTemplateDraftUpdatedAt] = useState<number | null>(null);
   const [templateDraftRestored, setTemplateDraftRestored] = useState(false);
@@ -821,7 +820,7 @@ const CreateContractInner = () => {
 
   const aiFilteredTemplates = useMemo(() => {
     const q = aiTemplateQuery.trim().toLowerCase();
-    if (!q) return allTemplatesOrdered.slice(0, 8);
+    if (!q) return allTemplatesOrdered;
     return allTemplatesOrdered.filter((t) => {
       const hay = `${t.filename || ''} ${t.name || ''} ${t.description || ''} ${t.contract_type || ''}`.toLowerCase();
       return hay.includes(q);
@@ -843,22 +842,6 @@ const CreateContractInner = () => {
             <div>
               <h1 className="text-[28px] md:text-[34px] font-semibold text-[#0F141F] leading-tight">{pageTitle}</h1>
               <p className="text-sm md:text-base text-[#6B7280] mt-1">{pageSubtitle}</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                className="w-10 h-10 rounded-full bg-white shadow-sm border border-black/5 flex items-center justify-center text-[#0F141F]/70 hover:text-[#0F141F]"
-                aria-label="Notifications"
-              >
-                <Bell className="w-5 h-5" />
-              </button>
-              <button
-                type="button"
-                className="w-10 h-10 rounded-full bg-white shadow-sm border border-black/5 flex items-center justify-center text-[#0F141F]/70 hover:text-[#0F141F]"
-                aria-label="Settings"
-              >
-                <Settings2 className="w-5 h-5" />
-              </button>
             </div>
           </div>
 
@@ -915,7 +898,7 @@ const CreateContractInner = () => {
                       <div className="mt-3 text-[11px] text-black/45">
                         {aiTemplateQuery.trim()
                           ? `Showing ${aiFilteredTemplates.length} results`
-                          : 'Showing top 8 templates (search to find more)'}
+                          : `Showing ${aiFilteredTemplates.length} templates`}
                       </div>
                     </div>
 
@@ -1533,24 +1516,6 @@ const CreateContractInner = () => {
                     <div className="flex items-center gap-2">
                       <div className="text-xs text-[#6B7280] font-semibold">Live Preview</div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setPreviewZoom((z) => Math.max(0.8, Math.round((z - 0.1) * 10) / 10))}
-                        className="w-9 h-9 rounded-lg bg-[#F7F7F7] border border-black/5 flex items-center justify-center text-[#0F141F]/70 hover:text-[#0F141F]"
-                        aria-label="Zoom out"
-                      >
-                        <ZoomOut className="w-5 h-5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPreviewZoom((z) => Math.min(1.3, Math.round((z + 0.1) * 10) / 10))}
-                        className="w-9 h-9 rounded-lg bg-[#F7F7F7] border border-black/5 flex items-center justify-center text-[#0F141F]/70 hover:text-[#0F141F]"
-                        aria-label="Zoom in"
-                      >
-                        <ZoomIn className="w-5 h-5" />
-                      </button>
-                    </div>
                   </div>
 
                   <div className="p-4">
@@ -1565,10 +1530,7 @@ const CreateContractInner = () => {
                           ) : !selectedTemplate ? (
                             <div className="text-sm text-[#6B7280]">Select a template to preview.</div>
                           ) : previewText ? (
-                            <div
-                              className="inline-block min-w-full"
-                              style={({ zoom: previewZoom } as any)}
-                            >
+                            <div className="inline-block min-w-full">
                               <pre className="whitespace-pre-wrap text-[13px] leading-relaxed text-[#111827] font-serif">
                                 {previewText}
                               </pre>
@@ -1580,14 +1542,14 @@ const CreateContractInner = () => {
                       </div>
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between gap-4">
-                      <div className="text-sm text-[#6B7280]">
+                    <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div className="text-sm text-[#6B7280] min-w-0">
                         {!user ? 'Please log in to create contracts.' : schema?.template_type ? `Type: ${schema.template_type}` : null}
                       </div>
                       <button
                         type="submit"
                         disabled={isCreateDisabled}
-                        className="bg-[#0F141F] text-white px-7 py-3.5 rounded-full shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="bg-[#0F141F] text-white w-full sm:w-auto px-7 py-3.5 rounded-full shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0"
                       >
                         {loading ? 'Creating…' : 'Move to editor'}
                       </button>
