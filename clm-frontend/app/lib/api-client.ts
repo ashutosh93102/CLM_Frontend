@@ -55,6 +55,15 @@ export interface Contract {
   rendered_html?: string
 }
 
+export interface ContractContentResponse {
+  contract_id: string
+  r2_key?: string | null
+  client_updated_at_ms?: number | null
+  server_updated_at_ms?: number | null
+  rendered_text: string
+  rendered_html: string
+}
+
 export interface ContractTemplate {
   id: string
   name: string
@@ -882,6 +891,10 @@ export class ApiClient {
 
   async getContractById(id: string): Promise<ApiResponse<Contract>> {
     return this.request('GET', `${ApiClient.API_V1_PREFIX}/contracts/${id}/`)
+  }
+
+  async getContractContent(id: string): Promise<ApiResponse<ContractContentResponse>> {
+    return this.request('GET', `${ApiClient.API_V1_PREFIX}/contracts/${id}/content/`)
   }
 
   async updateContract(id: string, data: Partial<Contract>): Promise<ApiResponse<Contract>> {

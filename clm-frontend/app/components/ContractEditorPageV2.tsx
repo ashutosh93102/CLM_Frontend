@@ -260,7 +260,10 @@ const ContractEditorPageV2: React.FC = () => {
         setLoading(true);
         setError(null);
         const client = new ApiClient();
-        const res = await client.getContractById(contractId);
+        const [res, contentRes] = await Promise.all([
+          client.getContractById(contractId),
+          client.getContractContent(contractId),
+        ]);
         if (!alive) return;
 
         if (res.success) {
@@ -271,10 +274,15 @@ const ContractEditorPageV2: React.FC = () => {
           // Initialize editor state BEFORE rendering the editor to avoid a mount-with-empty flash.
           const c = unwrapped as any;
           const md = normalizeMetadata(c?.metadata);
-          const backendClientMs = Number(md?.editor_client_updated_at_ms || 0) || 0;
 
-          const renderedHtml: string | undefined = c?.rendered_html || md?.rendered_html;
+          const content: any = contentRes?.success ? (contentRes.data as any) : null;
+          const backendClientMs =
+            Number(content?.client_updated_at_ms || md?.editor_client_updated_at_ms || 0) || 0;
+
+          const renderedHtml: string | undefined =
+            content?.rendered_html || c?.rendered_html || md?.rendered_html;
           const renderedText: string =
+            content?.rendered_text ||
             c?.rendered_text ||
             md?.rendered_text ||
             c?.raw_text ||
@@ -375,8 +383,8 @@ const ContractEditorPageV2: React.FC = () => {
     const c: any = contract as any;
     const md = normalizeMetadata(c?.metadata);
 
-    const existingHtmlRaw = c?.rendered_html || md?.rendered_html || '';
-    const existingText = String(c?.rendered_text || md?.rendered_text || c?.raw_text || md?.raw_text || '').trim();
+    const existingHtmlRaw = editorApiRef.current?.getHTML?.() ?? editorHtml;
+    const existingText = String(editorApiRef.current?.getText?.() ?? editorText ?? '').trim();
     if (!isMeaningfullyEmptyHtml(existingHtmlRaw) || !!existingText) {
       rehydratedOnceRef.current = true;
       return;
