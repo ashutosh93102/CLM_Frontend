@@ -606,7 +606,7 @@ export default function ReviewDetailPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 anim-fade-in">
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="min-w-0">
@@ -638,7 +638,7 @@ export default function ReviewDetailPage() {
         ) : (
           <>
             {/* Toolbar (matches screenshot vibe) */}
-            <div className="bg-white rounded-[28px] border border-slate-200 px-4 py-3 md:px-6 md:py-4 flex items-center gap-3 flex-wrap">
+            <div className="bg-white rounded-[28px] border border-slate-200 px-4 py-3 md:px-6 md:py-4 flex items-center gap-3 flex-wrap anim-fade-up">
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div className="inline-flex items-center gap-2 px-3 py-2 rounded-2xl bg-slate-50 border border-slate-200 min-w-0">
                   <FileText className="w-4 h-4 text-rose-500" />
@@ -702,7 +702,7 @@ export default function ReviewDetailPage() {
                     <ChevronDown className="w-4 h-4" />
                   </button>
                   {downloadOpen && (
-                    <div className="absolute right-0 mt-2 w-52 rounded-2xl border border-slate-200 bg-white shadow-lg overflow-hidden z-20">
+                    <div className="absolute right-0 mt-2 w-52 rounded-2xl border border-slate-200 bg-white shadow-lg overflow-hidden z-20 anim-slide-down">
                       <button
                         type="button"
                         className="w-full text-left px-4 py-3 text-sm hover:bg-slate-50"
@@ -789,7 +789,7 @@ export default function ReviewDetailPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-[420px,1fr] xl:grid-cols-[460px,1fr] gap-6">
               {/* Left Panel */}
-              <div className={`${showExtractedMobile ? 'block' : 'hidden'} lg:block lg:sticky lg:top-6 lg:self-start`}> 
+              <div className={`${showExtractedMobile ? 'block' : 'hidden'} lg:block lg:sticky lg:top-6 lg:self-start anim-fade-up`}> 
                 <div className="bg-white rounded-[28px] border border-slate-200 p-6 shadow-sm max-h-[calc(100vh-140px)] overflow-auto">
                   <div className="flex items-center justify-between">
                     <div>
@@ -1044,7 +1044,7 @@ export default function ReviewDetailPage() {
               </div>
 
               {/* Right Panel */}
-              <div className="space-y-6" id="document-preview">
+              <div className="space-y-6 anim-fade-up" id="document-preview">
                 <div className="bg-white rounded-[28px] border border-slate-200 overflow-hidden">
                   <div className="px-4 py-3 md:px-6 md:py-4 border-b border-slate-200 flex items-center justify-between gap-3 flex-wrap">
                     <div className="flex items-center gap-3">

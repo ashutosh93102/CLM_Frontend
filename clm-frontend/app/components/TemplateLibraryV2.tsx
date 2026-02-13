@@ -548,11 +548,6 @@ const TemplateLibrary: React.FC = () => {
                                   <span className={`text-[10px] px-2 py-1 rounded-full border ${pill.cls}`}>{pill.label}</span>
                                 </div>
                               </div>
-                              {active && (
-                                <span className="w-5 h-5 rounded-full border-2 border-rose-400 bg-white flex items-center justify-center">
-                                  ✓
-                                </span>
-                              )}
                             </div>
                           </button>
                         );

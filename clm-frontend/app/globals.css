@@ -85,4 +85,118 @@ body {
   .text-balance {
     text-wrap: balance;
   }
+
+  @keyframes clmFadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes clmFadeUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes clmScaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes clmSlideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes clmShimmer {
+    0% {
+      background-position: 0% 50%;
+    }
+    100% {
+      background-position: 100% 50%;
+    }
+  }
+
+  @keyframes clmBreathe {
+    0%,
+    100% {
+      opacity: 0.55;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes clmFloat {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-8px);
+    }
+  }
+
+  .anim-fade-in {
+    animation: clmFadeIn 180ms ease-out both;
+  }
+
+  .anim-fade-up {
+    animation: clmFadeUp 240ms ease-out both;
+  }
+
+  .anim-scale-in {
+    animation: clmScaleIn 200ms ease-out both;
+  }
+
+  .anim-slide-down {
+    transform-origin: top;
+    animation: clmSlideDown 160ms ease-out both;
+  }
+
+  .anim-shimmer {
+    background-size: 200% 100%;
+    animation: clmShimmer 1.1s ease-in-out infinite;
+  }
+
+  .anim-breathe {
+    animation: clmBreathe 1.6s ease-in-out infinite;
+  }
+
+  .anim-float {
+    animation: clmFloat 2.2s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .anim-fade-in,
+    .anim-fade-up,
+    .anim-scale-in,
+    .anim-slide-down,
+    .anim-shimmer,
+    .anim-breathe,
+    .anim-float {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
 }
