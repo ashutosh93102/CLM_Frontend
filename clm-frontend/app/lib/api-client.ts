@@ -1376,6 +1376,10 @@ export class ApiClient {
     return this.request('GET', `${ApiClient.API_V1_PREFIX}/firma/esign/requests/?${qs.toString()}`)
   }
 
+  async firmaDeleteSigningRequest(recordId: string): Promise<ApiResponse<any>> {
+    return this.request('DELETE', `${ApiClient.API_V1_PREFIX}/firma/esign/requests/${encodeURIComponent(String(recordId))}/`)
+  }
+
   /**
    * Authenticated SSE stream used for near-real-time notifications.
    * This uses `fetch()` streaming instead of `EventSource` so we can send Authorization headers.

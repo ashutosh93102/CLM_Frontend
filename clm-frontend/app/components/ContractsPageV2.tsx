@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import DashboardLayout from './DashboardLayout';
 import { useRouter } from 'next/navigation';
 import { ApiClient, Contract } from '@/app/lib/api-client';
-import { FileText, Search } from 'lucide-react';
+import { FileText, Search, Trash2 } from 'lucide-react';
 
 interface ContractStats {
   total: number;
@@ -27,6 +27,7 @@ const ContractsPageV2: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [search, setSearch] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const router = useRouter();
 
   const lastRefreshAtRef = React.useRef<number>(0);
@@ -90,6 +91,38 @@ const ContractsPageV2: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const deleteOne = async (contract: any) => {
+    const id = String(contract?.id || '').trim();
+    if (!id) return;
+
+    const title = String(contract?.title || contract?.name || 'this contract');
+    const ok = window.confirm(`Delete "${title}"? This cannot be undone.`);
+    if (!ok) return;
+
+    try {
+      setDeletingId(id);
+      setError(null);
+      const client = new ApiClient();
+      const res = await client.deleteContract(id);
+      if (!res.success) {
+        setError(res.error || 'Failed to delete contract');
+        return;
+      }
+
+      // Refresh list and notify any other pages.
+      await fetchContracts();
+      window.dispatchEvent(new Event('contracts:changed'));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete contract');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const openContract = (contractId: string) => {
+    router.push(`/contracts/editor?id=${encodeURIComponent(contractId)}`);
   };
 
   const formatUpdatedLabel = (c: any) => {
@@ -191,27 +224,50 @@ const ContractsPageV2: React.FC = () => {
             <div className="py-16 text-center text-slate-500">No contracts found</div>
           ) : (
             visibleContracts.map((contract: any) => (
-              <button
+              <div
                 key={contract.id}
-                onClick={() => router.push(`/contracts/editor?id=${encodeURIComponent(contract.id)}`)}
-                className="w-full text-left px-6 py-5 hover:bg-slate-50 transition"
+                role="button"
+                tabIndex={0}
+                onClick={() => openContract(String(contract.id))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openContract(String(contract.id));
+                  }
+                }}
+                className="w-full text-left px-6 py-5 hover:bg-slate-50 transition cursor-pointer"
               >
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <p className="font-semibold text-slate-900 truncate">{contract.title || contract.name}</p>
                     <p className="text-xs text-slate-500 mt-1 truncate">{contract.id}</p>
                   </div>
-                  <div className="flex items-center gap-3">
+
+                  <div className="flex items-center gap-3 shrink-0">
                     <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(contract.status)}`}>
                       {String(contract.status).toUpperCase()}
                     </span>
-                    <span className="text-xs text-slate-500 hidden sm:inline">
-                      {formatUpdatedLabel(contract)}
-                    </span>
+                    <span className="text-xs text-slate-500 hidden sm:inline">{formatUpdatedLabel(contract)}</span>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        deleteOne(contract);
+                      }}
+                      disabled={deletingId === String(contract.id)}
+                      className="inline-flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-800 w-9 h-9 hover:bg-slate-50 disabled:opacity-50"
+                      aria-label="Delete contract"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+
                     <span className="text-sm font-semibold text-slate-700">View →</span>
                   </div>
                 </div>
-              </button>
+              </div>
             ))
           )}
         </div>

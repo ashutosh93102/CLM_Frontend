@@ -85,6 +85,11 @@ export default function GoogleSignInButton({ clientId, disabled, onCredential, o
 
         // Render the official button in our container.
         if (buttonDivRef.current) {
+          // Ensure centering works even if the Google renderer injects inline styles.
+          buttonDivRef.current.style.display = 'flex'
+          buttonDivRef.current.style.justifyContent = 'center'
+          buttonDivRef.current.style.width = '100%'
+
           const containerWidth = buttonDivRef.current.parentElement?.clientWidth || 360
           const width = Math.max(220, Math.min(360, containerWidth))
 
@@ -131,8 +136,8 @@ export default function GoogleSignInButton({ clientId, disabled, onCredential, o
   const isDisabled = disabled || !ready
 
   return (
-    <div className={isDisabled ? 'opacity-60 pointer-events-none' : ''}>
-      <div ref={buttonDivRef} className="flex justify-center" />
+    <div className={`w-full flex justify-center ${isDisabled ? 'opacity-60 pointer-events-none' : ''}`}>
+      <div ref={buttonDivRef} className="w-full" />
     </div>
   )
 }

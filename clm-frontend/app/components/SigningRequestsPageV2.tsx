@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import DashboardLayout from './DashboardLayout';
 import { useRouter } from 'next/navigation';
 import { ApiClient, FirmaSigningRequestListItem } from '@/app/lib/api-client';
-import { CheckSquare, Search, Send, ArrowRight } from 'lucide-react';
+import { CheckSquare, Search, Send, ArrowRight, Trash2 } from 'lucide-react';
 
 type StatusFilter = 'all' | 'draft' | 'sent' | 'completed' | 'declined' | 'failed';
 
@@ -16,6 +16,7 @@ const SigningRequestsPageV2: React.FC = () => {
   const [search, setSearch] = useState('');
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null);
 
   const router = useRouter();
@@ -108,6 +109,28 @@ const SigningRequestsPageV2: React.FC = () => {
       await fetchList();
     } finally {
       setResendingId(null);
+    }
+  };
+
+  const deleteOne = async (rowId: string, contractTitle?: string | null) => {
+    const title = String(contractTitle || 'this signing request');
+    const ok = window.confirm(`Delete "${title}" signing request from CLM? This does not delete the contract.`);
+    if (!ok) return;
+
+    try {
+      setDeletingId(rowId);
+      setError(null);
+      const client = new ApiClient();
+      const res = await client.firmaDeleteSigningRequest(rowId);
+      if (!res.success) {
+        setError(res.error || 'Failed to delete signing request');
+        return;
+      }
+      await fetchList();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete signing request');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -241,6 +264,16 @@ const SigningRequestsPageV2: React.FC = () => {
                         >
                           <Send className="w-4 h-4" />
                           {resendingId === it.id ? 'Resending…' : 'Resend'}
+                        </button>
+
+                        <button
+                          onClick={() => deleteOne(it.id, it.contract_title)}
+                          disabled={deletingId === it.id}
+                          className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 text-rose-700 px-4 py-2 text-xs font-semibold hover:bg-rose-50 disabled:opacity-50"
+                          title="Delete signing request"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          {deletingId === it.id ? 'Deleting…' : 'Delete'}
                         </button>
 
                         <button

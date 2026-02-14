@@ -674,46 +674,12 @@ const ContractEditorPageV2: React.FC = () => {
     }
   };
 
-
-  const pollAbortRef = useRef<AbortController | null>(null);
-  const pollTimerRef = useRef<number | null>(null);
-  const pollStartedAtRef = useRef<number>(0);
-  const pollDelayRef = useRef<number>(2000);
-
-  const [liveStatus, setLiveStatus] = useState(false);
-  const [polling, setPolling] = useState(false);
-  const [pollError, setPollError] = useState<string | null>(null);
-
-  const stopLiveStatus = () => {
-    try {
-      pollAbortRef.current?.abort();
-    } catch {
-      // ignore
-    }
-    pollAbortRef.current = null;
-    if (pollTimerRef.current) {
-      window.clearTimeout(pollTimerRef.current);
-      pollTimerRef.current = null;
-    }
-    setPolling(false);
-    setLiveStatus(false);
-  };
-
   const openFirmaSigning = () => {
     setSignError(null);
     setSigningUrl(null);
     setSignStatus(null);
-    setPollError(null);
-    setLiveStatus(false);
     setSignOpen(true);
   };
-
-  useEffect(() => {
-    if (!signOpen) {
-      stopLiveStatus();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signOpen]);
 
   const validateSigningUrl = (url: string) => {
     const u = (url || '').trim();
@@ -730,71 +696,25 @@ const ContractEditorPageV2: React.FC = () => {
     return null;
   };
 
-  const refreshSigningStatus = async (opts?: { silent?: boolean; signal?: AbortSignal }) => {
+  const refreshSigningStatus = async () => {
     if (!contractId) return;
     try {
-      if (!opts?.silent) setSignStatusLoading(true);
+      setSignStatusLoading(true);
       setSignError(null);
-      if (!opts?.silent) setPollError(null);
       const client = new ApiClient();
-      const res = await client.firmaStatus(contractId, { signal: opts?.signal });
+      const res = await client.firmaStatus(contractId);
       if (!res.success) {
         const msg = res.error || 'Failed to fetch status';
-        if (!opts?.silent) setSignError(msg);
-        setPollError(msg);
+        setSignError(msg);
         return;
       }
       setSignStatus(res.data as any);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to fetch status';
-      if (!opts?.silent) setSignError(msg);
-      setPollError(msg);
+      setSignError(msg);
     } finally {
-      if (!opts?.silent) setSignStatusLoading(false);
+      setSignStatusLoading(false);
     }
-  };
-
-  const startLiveStatus = () => {
-    if (!contractId) return;
-    if (polling) return;
-    setLiveStatus(true);
-    setPolling(true);
-    setPollError(null);
-    pollStartedAtRef.current = Date.now();
-    pollDelayRef.current = 2000;
-
-    const tick = async () => {
-      if (!contractId) return;
-      if (!signOpen) return;
-
-      // stop after 10 minutes
-      if (Date.now() - pollStartedAtRef.current > 10 * 60 * 1000) {
-        setPollError('Live status stopped (timeout). Click “Check status” to refresh.');
-        setPolling(false);
-        return;
-      }
-
-      const controller = new AbortController();
-      pollAbortRef.current = controller;
-
-      await refreshSigningStatus({ silent: true, signal: controller.signal });
-
-      const statusVal = String((signStatus as any)?.status || '').toLowerCase();
-      const allSigned = Boolean((signStatus as any)?.all_signed);
-      const completed = statusVal === 'completed' || statusVal === 'executed';
-
-      if (completed && allSigned) {
-        setPolling(false);
-        return;
-      }
-
-      // backoff up to 10s
-      pollDelayRef.current = Math.min(10000, Math.floor(pollDelayRef.current * 1.25));
-      pollTimerRef.current = window.setTimeout(tick, pollDelayRef.current);
-    };
-
-    // immediate first poll
-    void tick();
   };
 
   const startSigning = async () => {
@@ -809,7 +729,6 @@ const ContractEditorPageV2: React.FC = () => {
     try {
       setSigning(true);
       setSignError(null);
-      setPollError(null);
       const client = new ApiClient();
 
       // Firma's multi-signer flow is always invite-all (parallel).
@@ -1399,36 +1318,15 @@ const ContractEditorPageV2: React.FC = () => {
                   </div>
                 ) : null}
 
-                {pollError ? <div className="text-xs text-amber-700">{pollError}</div> : null}
-
                 <div className="flex items-center justify-end gap-2">
                   <button
                     type="button"
-                    onClick={() => refreshSigningStatus()}
+                    onClick={refreshSigningStatus}
                     disabled={signStatusLoading}
                     className="h-10 px-4 rounded-full bg-white border border-black/10 text-black/70 text-sm font-semibold hover:bg-black/5 disabled:opacity-60"
                   >
                     {signStatusLoading ? 'Checking…' : 'Check status'}
                   </button>
-
-                  {liveStatus ? (
-                    <button
-                      type="button"
-                      onClick={stopLiveStatus}
-                      className="h-10 px-4 rounded-full bg-white border border-black/10 text-black/70 text-sm font-semibold hover:bg-black/5"
-                    >
-                      Stop live status
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={startLiveStatus}
-                      disabled={polling}
-                      className="h-10 px-4 rounded-full bg-white border border-black/10 text-black/70 text-sm font-semibold hover:bg-black/5 disabled:opacity-60"
-                    >
-                      {polling ? 'Starting…' : 'Live status'}
-                    </button>
-                  )}
 
                   <button
                     type="button"
