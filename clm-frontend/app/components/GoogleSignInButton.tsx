@@ -82,15 +82,19 @@ export default function GoogleSignInButton({ clientId, disabled, onCredential, o
           initializedClientId = clientId
         }
 
+
         // Render the official button in our container.
         if (buttonDivRef.current) {
+          const containerWidth = buttonDivRef.current.parentElement?.clientWidth || 360
+          const width = Math.max(220, Math.min(360, containerWidth))
+
           buttonDivRef.current.innerHTML = ''
           window.google.accounts.id.renderButton(buttonDivRef.current, {
             theme: 'outline',
             size: 'large',
             text: 'continue_with',
             shape: 'pill',
-            width: 360,
+            width,
           })
         }
 

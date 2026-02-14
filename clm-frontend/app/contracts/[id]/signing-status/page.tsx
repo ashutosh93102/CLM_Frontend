@@ -316,7 +316,6 @@ export default function SigningStatusPage() {
 	const [statusData, setStatusData] = useState<any | null>(null);
 	const [details, setDetails] = useState<any | null>(null);
 	const [reminders, setReminders] = useState<any | null>(null);
-	const [downloading, setDownloading] = useState(false);
 	const [downloadingCert, setDownloadingCert] = useState(false);
 	const [events, setEvents] = useState<Array<{ ts: number; type: string; message?: string; payload?: any }>>([]);
 	const [activity, setActivity] = useState<any[] | null>(null);
@@ -480,30 +479,6 @@ export default function SigningStatusPage() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [contractId, liveEnabled]);
 
-	const downloadExecuted = async () => {
-		if (!contractId) return;
-		try {
-			setDownloading(true);
-			setError(null);
-			const client = new ApiClient();
-			const res = await client.firmaDownloadExecutedPdf(contractId);
-			if (!res.success || !res.data) {
-				setError(res.error || 'Failed to download signed PDF');
-				return;
-			}
-			const blobUrl = URL.createObjectURL(res.data);
-			const a = document.createElement('a');
-			a.href = blobUrl;
-			a.download = `${safeFilenameBase}_signed.pdf`;
-			document.body.appendChild(a);
-			a.click();
-			a.remove();
-			URL.revokeObjectURL(blobUrl);
-		} finally {
-			setDownloading(false);
-		}
-	};
-
 	const downloadCertificate = async () => {
 		if (!contractId) return;
 		try {
@@ -587,14 +562,6 @@ export default function SigningStatusPage() {
 					<div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-2">
 					{steps.completed ? (
 						<>
-						<button
-							type="button"
-							onClick={() => void downloadExecuted()}
-							disabled={downloading}
-							className="col-span-3 sm:col-span-auto h-9 sm:h-10 px-4 rounded-full bg-[#0F141F] text-white text-xs sm:text-sm font-semibold disabled:opacity-60"
-						>
-							{downloading ? 'Downloading…' : 'Download signed PDF'}
-						</button>
 						<button
 							type="button"
 							onClick={() => void downloadCertificate()}

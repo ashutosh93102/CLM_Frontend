@@ -205,9 +205,8 @@ const SigningRequestsPageV2: React.FC = () => {
                       </div>
 
                       <div className="mt-4 w-full">
-                        <div className="flex items-center justify-between text-xs text-slate-600">
+                        <div className="flex items-center text-xs text-slate-600">
                           <span>Progress</span>
-                          <span className="font-semibold">{p.signed}/{p.total_signers} ({pct}%)</span>
                         </div>
                         <div className="mt-2 h-2 rounded-full bg-slate-100 overflow-hidden">
                           <div className="h-full bg-[#FF5C7A]" style={{ width: `${pct}%` }} />

@@ -838,19 +838,19 @@ const CreateContractInner = () => {
     <DashboardLayout>
       <div className="min-h-screen bg-[#F2F0EB]">
         <div className="max-w-[1280px] mx-auto px-4 md:px-8 py-6 md:py-8">
-          <div className="flex items-start justify-between gap-6">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-6">
             <div>
               <h1 className="text-[28px] md:text-[34px] font-semibold text-[#0F141F] leading-tight">{pageTitle}</h1>
               <p className="text-sm md:text-base text-[#6B7280] mt-1">{pageSubtitle}</p>
             </div>
           </div>
 
-          <div className="mt-6 flex items-center justify-between gap-4">
-            <div className="inline-flex items-center rounded-full bg-white border border-black/5 p-1 shadow-sm">
+          <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex w-full sm:w-auto items-center rounded-full bg-white border border-black/5 p-1 shadow-sm">
               <button
                 type="button"
                 onClick={() => setMode('templates')}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition ${
+                className={`flex-1 sm:flex-none px-4 py-2 rounded-full text-sm font-medium transition text-center ${
                   mode === 'templates' ? 'bg-[#0F141F] text-white' : 'text-[#0F141F]/70 hover:text-[#0F141F]'
                 }`}
               >
@@ -859,7 +859,7 @@ const CreateContractInner = () => {
               <button
                 type="button"
                 onClick={() => setMode('ai')}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition flex items-center gap-2 ${
+                className={`flex-1 sm:flex-none px-4 py-2 rounded-full text-sm font-medium transition flex items-center justify-center gap-2 ${
                   mode === 'ai' ? 'bg-[#0F141F] text-white' : 'text-[#0F141F]/70 hover:text-[#0F141F]'
                 }`}
               >
@@ -902,7 +902,7 @@ const CreateContractInner = () => {
                       </div>
                     </div>
 
-                    <div className="p-4 space-y-3 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 320px)' }}>
+                    <div className="p-4 space-y-3 overflow-y-auto max-h-[45vh] sm:max-h-[55vh] lg:max-h-[calc(100vh-320px)]">
                       {aiFilteredTemplates.length === 0 ? (
                         <div className="text-sm text-black/45 p-2">No templates match your search.</div>
                       ) : (
@@ -929,8 +929,8 @@ const CreateContractInner = () => {
                   </aside>
 
                   {/* Main content */}
-                  <section className="col-span-12 lg:col-span-9 bg-white rounded-[18px] border border-black/5 shadow-sm p-8">
-                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <section className="col-span-12 lg:col-span-9 bg-white rounded-[18px] border border-black/5 shadow-sm p-5 sm:p-6 lg:p-8">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                       <div>
                         <div className="text-lg font-semibold text-[#0F141F]">Get Started</div>
                         <div className="text-sm text-[#6B7280] mt-1">Open the template in the editor and apply prompts live.</div>
@@ -939,7 +939,7 @@ const CreateContractInner = () => {
                         type="button"
                         onClick={startAiBuilder}
                         disabled={!selectedTemplate || aiLoadingTemplate}
-                        className="h-11 px-5 rounded-full bg-[#0F141F] text-white text-sm font-semibold disabled:opacity-60"
+                        className="h-11 w-full sm:w-auto px-5 rounded-full bg-[#0F141F] text-white text-sm font-semibold disabled:opacity-60"
                       >
                         {aiLoadingTemplate ? 'Loading…' : aiDraftUpdatedAt ? 'Resume Draft' : 'Get Started'}
                       </button>
@@ -972,7 +972,7 @@ const CreateContractInner = () => {
                 </div>
               ) : (
                 <div className="bg-[#F2F0EB]">
-                  <div className="flex items-center justify-between gap-4 mb-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                     <div className="flex items-center gap-4 min-w-0">
                       <button
                         type="button"
@@ -992,12 +992,12 @@ const CreateContractInner = () => {
                         <div className="text-xs text-black/45 mt-1 truncate">Template: {selectedTemplate || ''}</div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="w-full sm:w-auto flex items-center gap-2">
                       <button
                         type="button"
                         onClick={createDraftFromAi}
                         disabled={loading || aiGenerating || !aiBaseText.trim() || !user}
-                        className="h-10 px-4 rounded-full bg-white border border-black/10 text-sm font-semibold text-[#111827] hover:bg-black/5 disabled:opacity-60"
+                        className="h-10 w-full sm:w-auto px-4 rounded-full bg-white border border-black/10 text-sm font-semibold text-[#111827] hover:bg-black/5 disabled:opacity-60"
                       >
                         Create Draft
                       </button>
@@ -1020,7 +1020,7 @@ const CreateContractInner = () => {
                         </div>
                       </div>
 
-                      <div className="px-6 py-6 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
+                      <div className="px-4 sm:px-6 py-5 sm:py-6 overflow-visible lg:overflow-y-auto lg:max-h-[calc(100vh-280px)]">
                         <RichTextEditor
                           valueHtml={aiBaseHtml}
                           disabled={aiGenerating}
@@ -1031,7 +1031,7 @@ const CreateContractInner = () => {
                             setAiBaseHtml(html);
                             setAiBaseText(text);
                           }}
-                          editorClassName={`min-h-[60vh] rounded-2xl border border-black/10 bg-white px-5 py-4 text-[13px] leading-6 text-slate-900 font-serif outline-none ${
+                          editorClassName={`min-h-[50vh] sm:min-h-[60vh] rounded-2xl border border-black/10 bg-white px-5 py-4 text-[13px] leading-6 text-slate-900 font-serif outline-none ${
                             aiGenerating ? 'opacity-80' : ''
                           }`}
                         />
@@ -1060,12 +1060,12 @@ const CreateContractInner = () => {
                             disabled={aiGenerating}
                           />
 
-                          <div className="mt-4 flex items-center gap-2">
+                          <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-2">
                             <button
                               type="button"
                               onClick={applyAiPrompt}
                               disabled={aiGenerating || !aiPrompt.trim()}
-                              className="h-10 px-4 rounded-full bg-[#0F141F] text-white text-sm font-semibold disabled:opacity-60"
+                              className="h-10 w-full sm:w-auto px-4 rounded-full bg-[#0F141F] text-white text-sm font-semibold disabled:opacity-60"
                             >
                               {aiGenerating ? 'Generating…' : 'Generate Suggestion'}
                             </button>
@@ -1073,7 +1073,7 @@ const CreateContractInner = () => {
                               <button
                                 type="button"
                                 onClick={stopAi}
-                                className="h-10 px-4 rounded-full bg-white border border-black/10 text-sm font-semibold text-[#111827] hover:bg-black/5"
+                                className="h-10 w-full sm:w-auto px-4 rounded-full bg-white border border-black/10 text-sm font-semibold text-[#111827] hover:bg-black/5"
                               >
                                 Stop
                               </button>
@@ -1101,12 +1101,12 @@ const CreateContractInner = () => {
                                 </div>
                               )}
 
-                              <div className="mt-4 flex items-center gap-2">
+                              <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-2">
                                 <button
                                   type="button"
                                   onClick={acceptAiSuggestion}
                                   disabled={!aiSuggestionText.trim() || aiGenerating}
-                                  className="h-10 px-4 rounded-full bg-[#FF5C7A] text-white text-sm font-semibold disabled:opacity-60"
+                                  className="h-10 w-full sm:w-auto px-4 rounded-full bg-[#FF5C7A] text-white text-sm font-semibold disabled:opacity-60"
                                 >
                                   Accept
                                 </button>
@@ -1114,7 +1114,7 @@ const CreateContractInner = () => {
                                   type="button"
                                   onClick={rejectAiSuggestion}
                                   disabled={!aiSuggestionText.trim() || aiGenerating}
-                                  className="h-10 px-4 rounded-full bg-white border border-black/10 text-sm font-semibold text-[#111827] hover:bg-black/5 disabled:opacity-60"
+                                  className="h-10 w-full sm:w-auto px-4 rounded-full bg-white border border-black/10 text-sm font-semibold text-[#111827] hover:bg-black/5 disabled:opacity-60"
                                 >
                                   Reject
                                 </button>
@@ -1522,8 +1522,7 @@ const CreateContractInner = () => {
                     <div className="bg-[#EEF0F3] rounded-[18px] p-2 sm:p-3">
                       <div className="bg-white rounded-[14px] shadow-sm border border-black/5 overflow-hidden">
                         <div
-                          className="p-5 sm:p-6 overflow-y-auto"
-                          style={{ height: 'calc(100vh - 320px)' }}
+                          className="p-5 sm:p-6 overflow-visible lg:overflow-y-auto lg:max-h-[calc(100vh-320px)]"
                         >
                           {previewLoading ? (
                             <div className="text-sm text-[#6B7280]">Generating preview…</div>

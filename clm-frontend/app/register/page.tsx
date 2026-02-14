@@ -125,6 +125,8 @@ export default function RegisterPage() {
             ? 'Good'
             : 'Strong'
 
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+
   return (
     <AuthCardShell title="Create Account" subtitle="Create your account and verify OTP to activate" activeTab="register">
       {displayError && (
@@ -283,9 +285,15 @@ export default function RegisterPage() {
           <div className="h-px flex-1 bg-gray-100" />
         </div>
 
+        {!googleClientId ? (
+          <p className="mt-3 text-center text-[11px] text-gray-400">
+            Set <span className="font-semibold">NEXT_PUBLIC_GOOGLE_CLIENT_ID</span> to enable Google sign-in.
+          </p>
+        ) : null}
+
         <div className="mt-4 flex justify-center">
           <GoogleSignInButton
-            clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}
+            clientId={googleClientId}
             disabled={isLoading}
             onCredential={async (credential) => {
               setLocalError('')
@@ -299,3 +307,4 @@ export default function RegisterPage() {
     </AuthCardShell>
   )
 }
+

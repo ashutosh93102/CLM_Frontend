@@ -153,28 +153,32 @@ export default function LoginPage() {
         </button>
       </form>
 
-      {googleClientId && (
-        <div className="mt-6">
-          <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-gray-100" />
-            <div className="text-[10px] font-semibold tracking-widest text-gray-300">OR CONTINUE WITH</div>
-            <div className="h-px flex-1 bg-gray-100" />
-          </div>
-
-          <div className="mt-4 flex justify-center">
-            <GoogleSignInButton
-              clientId={googleClientId}
-              disabled={isLoading}
-              onCredential={async (credential) => {
-                setLocalError('')
-                await loginWithGoogle(credential)
-                router.replace('/dashboard')
-              }}
-              onError={(msg) => setLocalError(msg)}
-            />
-          </div>
+      <div className="mt-6">
+        <div className="flex items-center gap-3">
+          <div className="h-px flex-1 bg-gray-100" />
+          <div className="text-[10px] font-semibold tracking-widest text-gray-300">OR CONTINUE WITH</div>
+          <div className="h-px flex-1 bg-gray-100" />
         </div>
-      )}
+
+        {!googleClientId ? (
+          <p className="mt-3 text-center text-[11px] text-gray-400">
+            Set <span className="font-semibold">NEXT_PUBLIC_GOOGLE_CLIENT_ID</span> to enable Google sign-in.
+          </p>
+        ) : null}
+
+        <div className="mt-4 flex justify-center">
+          <GoogleSignInButton
+            clientId={googleClientId}
+            disabled={isLoading}
+            onCredential={async (credential) => {
+              setLocalError('')
+              await loginWithGoogle(credential)
+              router.replace('/dashboard')
+            }}
+            onError={(msg) => setLocalError(msg)}
+          />
+        </div>
+      </div>
     </AuthCardShell>
   )
 }
