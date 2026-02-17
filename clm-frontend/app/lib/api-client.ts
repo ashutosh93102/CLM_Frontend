@@ -1223,6 +1223,60 @@ export class ApiClient {
     return this.blobRequest(`${ApiClient.API_V1_PREFIX}/esign/executed/${contractId}/`)
   }
 
+  // ==================== INHOUSE E-SIGN ====================
+  async inhouseStart(params: {
+    contract_id: string
+    signers: EsignSigner[]
+    signing_order?: EsignSigningOrder
+    expires_in_days?: number
+  }): Promise<
+    ApiResponse<{
+      success: boolean
+      contract_id: string
+      status?: string
+      signing_order?: string
+      expires_at?: string | null
+      signing_url?: string | null
+      invite_urls?: Array<{ email: string; name: string; signing_url: string }>
+    }>
+  > {
+    return this.request('POST', `${ApiClient.API_V1_PREFIX}/inhouse/esign/start/`, {
+      contract_id: params.contract_id,
+      signers: params.signers,
+      signing_order: params.signing_order || 'sequential',
+      expires_in_days: params.expires_in_days ?? 30,
+    })
+  }
+
+  async inhouseStatus(contractId: string, opts?: { signal?: AbortSignal }): Promise<ApiResponse<any>> {
+    return this.request('GET', `${ApiClient.API_V1_PREFIX}/inhouse/esign/status/${contractId}/`, undefined, undefined, true, {
+      signal: opts?.signal,
+    })
+  }
+
+  async inhouseDownloadExecutedPdf(contractId: string): Promise<ApiResponse<Blob>> {
+    return this.blobRequest(`${ApiClient.API_V1_PREFIX}/inhouse/esign/executed/${contractId}/`)
+  }
+
+  async inhouseSignerSession(token: string, deviceId?: string): Promise<ApiResponse<any>> {
+    const headers = deviceId ? { 'X-Device-Id': deviceId } : undefined
+    return this.request('GET', `${ApiClient.API_V1_PREFIX}/inhouse/esign/session/${token}/`, undefined, headers, true, {
+      auth: false,
+    })
+  }
+
+  async inhouseSignerSign(token: string, signature_data_url: string, deviceId?: string): Promise<ApiResponse<any>> {
+    const headers = deviceId ? { 'X-Device-Id': deviceId } : undefined
+    return this.request(
+      'POST',
+      `${ApiClient.API_V1_PREFIX}/inhouse/esign/sign/${token}/`,
+      { signature_data_url },
+      headers,
+      true,
+      { auth: false }
+    )
+  }
+
   /**
    * Convenience wrapper used by the editor UI.
    * Ensures the contract is uploaded (if needed), sends invitations, then returns the first signer's signing URL.

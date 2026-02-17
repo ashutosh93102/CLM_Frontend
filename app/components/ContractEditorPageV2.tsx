@@ -21,6 +21,8 @@ type SignerDraft = {
   name: string;
 };
 
+type SignProvider = 'inhouse' | 'signnow' | 'firma';
+
 type GenerationContext = {
   contractId: string;
   template: string;
@@ -73,7 +75,9 @@ const ContractEditorPageV2: React.FC = () => {
 
   // E-sign
   const [signOpen, setSignOpen] = useState(false);
+  const [signProvider, setSignProvider] = useState<SignProvider>('inhouse');
   const [signers, setSigners] = useState<SignerDraft[]>([{ email: '', name: '' }]);
+  const [signingOrder, setSigningOrder] = useState<'sequential' | 'parallel'>('sequential');
   const [signing, setSigning] = useState(false);
   const [signError, setSignError] = useState<string | null>(null);
   const [signingUrl, setSigningUrl] = useState<string | null>(null);
@@ -674,7 +678,7 @@ const ContractEditorPageV2: React.FC = () => {
     }
   };
 
-  const openFirmaSigning = () => {
+  const openSigningModal = () => {
     setSignError(null);
     setSigningUrl(null);
     setSignStatus(null);
@@ -684,10 +688,17 @@ const ContractEditorPageV2: React.FC = () => {
   const validateSigningUrl = (url: string) => {
     const u = (url || '').trim();
     if (!u) return 'Signing URL is missing';
+
+    if (signProvider === 'inhouse') {
+      if (u.startsWith('/')) return null;
+      if (/^https?:\/\//i.test(u)) return null;
+      return 'Signing URL is invalid.';
+    }
+
     // Production safety: reject localhost/mock links.
     const lower = u.toLowerCase();
-    if (lower.includes('localhost') || lower.includes('127.0.0.1') || lower.includes('/firma/mock')) {
-      return 'Firma returned a localhost/mock signing link. Disable FIRMA_MOCK and configure real FIRMA_BASE_URL + FIRMA_API on the backend.';
+    if (lower.includes('localhost') || lower.includes('127.0.0.1') || lower.includes('/mock')) {
+      return 'Backend returned a localhost/mock signing link. Configure the real e-sign provider URLs on the backend.';
     }
     // Enforce absolute URL.
     if (!/^https?:\/\//i.test(u)) {
@@ -702,7 +713,12 @@ const ContractEditorPageV2: React.FC = () => {
       setSignStatusLoading(true);
       setSignError(null);
       const client = new ApiClient();
-      const res = await client.firmaStatus(contractId);
+      const res =
+        signProvider === 'firma'
+          ? await client.firmaStatus(contractId)
+          : signProvider === 'inhouse'
+            ? await client.inhouseStatus(contractId)
+            : await client.esignStatus(contractId);
       if (!res.success) {
         const msg = res.error || 'Failed to fetch status';
         setSignError(msg);
@@ -730,6 +746,60 @@ const ContractEditorPageV2: React.FC = () => {
       setSigning(true);
       setSignError(null);
       const client = new ApiClient();
+
+      if (signProvider === 'inhouse') {
+        const res = await client.inhouseStart({
+          contract_id: contractId,
+          signers: cleaned,
+          signing_order: signingOrder,
+        });
+        if (!res.success) {
+          setSignError(res.error || 'Failed to start signing');
+          return;
+        }
+
+        const url = String((res.data as any)?.signing_url || '');
+        const urlErr = validateSigningUrl(url);
+        if (urlErr) {
+          setSignError(urlErr);
+          setSigningUrl(null);
+          return;
+        }
+
+        setSigningUrl(url);
+        window.open(url, '_blank', 'noopener,noreferrer');
+
+        setSignOpen(false);
+        router.push(`/contracts/signing-status?id=${encodeURIComponent(contractId)}&provider=inhouse`);
+        return;
+      }
+
+      if (signProvider === 'signnow') {
+        const res = await client.esignStart({
+          contract_id: contractId,
+          signers: cleaned,
+          signing_order: signingOrder,
+        });
+        if (!res.success) {
+          setSignError(res.error || 'Failed to start signing');
+          return;
+        }
+
+        const url = String((res.data as any)?.signing_url || '');
+        const urlErr = validateSigningUrl(url);
+        if (urlErr) {
+          setSignError(urlErr);
+          setSigningUrl(null);
+          return;
+        }
+
+        setSigningUrl(url);
+        window.open(url, '_blank', 'noopener,noreferrer');
+
+        setSignOpen(false);
+        router.push(`/contracts/signing-status?id=${encodeURIComponent(contractId)}&provider=signnow`);
+        return;
+      }
 
       // Firma's multi-signer flow is always invite-all (parallel).
       const effectiveSigningOrder: 'parallel' = 'parallel';
@@ -814,9 +884,9 @@ const ContractEditorPageV2: React.FC = () => {
       setSigningUrl(url);
       window.open(url, '_blank', 'noopener,noreferrer');
 
-        // Move user to the dedicated progress page right away.
-        setSignOpen(false);
-        router.push(`/contracts/signing-status?id=${encodeURIComponent(contractId)}`);
+      // Move user to the dedicated progress page right away.
+      setSignOpen(false);
+      router.push(`/contracts/signing-status?id=${encodeURIComponent(contractId)}&provider=firma`);
     } catch (e) {
       setSignError(e instanceof Error ? e.message : 'Failed to start signing');
     } finally {
@@ -867,9 +937,9 @@ const ContractEditorPageV2: React.FC = () => {
       setSigningUrl(url);
       window.open(url, '_blank', 'noopener,noreferrer');
 
-        // Move user to the dedicated progress page right away.
-        setSignOpen(false);
-        router.push(`/contracts/signing-status?id=${encodeURIComponent(pending.contract_id)}`);
+      // Move user to the dedicated progress page right away.
+      setSignOpen(false);
+      router.push(`/contracts/signing-status?id=${encodeURIComponent(pending.contract_id)}&provider=firma`);
     } finally {
       setSigning(false);
     }
@@ -885,7 +955,12 @@ const ContractEditorPageV2: React.FC = () => {
       return;
     }
     const client = new ApiClient();
-    const res = await client.firmaDownloadExecutedPdf(contractId);
+    const res =
+      signProvider === 'firma'
+        ? await client.firmaDownloadExecutedPdf(contractId)
+        : signProvider === 'inhouse'
+          ? await client.inhouseDownloadExecutedPdf(contractId)
+          : await client.esignDownloadExecutedPdf(contractId);
     if (res.success && res.data) {
       triggerDownload(res.data, `${title.replace(/\s+/g, '_')}_signed.pdf`);
     } else {
@@ -999,7 +1074,7 @@ const ContractEditorPageV2: React.FC = () => {
               <div className="w-full sm:w-auto">
                 <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-2 relative justify-start sm:justify-end">
                 <button
-                  onClick={openFirmaSigning}
+                  onClick={openSigningModal}
                   className="col-span-1 h-9 sm:h-10 px-3 sm:px-4 rounded-full bg-white border border-black/10 text-[#0F141F] text-xs sm:text-sm font-semibold hover:bg-black/5"
                   type="button"
                 >
@@ -1192,6 +1267,95 @@ const ContractEditorPageV2: React.FC = () => {
               </div>
 
               <div className="p-6 space-y-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="text-sm font-semibold text-[#111827]">Provider</div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSignProvider('inhouse');
+                        setSignError(null);
+                        setSigningUrl(null);
+                        setSignStatus(null);
+                      }}
+                      className={`h-9 px-3 rounded-full border text-sm font-semibold ${
+                        signProvider === 'inhouse'
+                          ? 'bg-[#0F141F] text-white border-[#0F141F]'
+                          : 'bg-white text-[#0F141F] border-black/10 hover:bg-black/5'
+                      }`}
+                    >
+                      Inhouse
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSignProvider('signnow');
+                        setSignError(null);
+                        setSigningUrl(null);
+                        setSignStatus(null);
+                      }}
+                      className={`h-9 px-3 rounded-full border text-sm font-semibold ${
+                        signProvider === 'signnow'
+                          ? 'bg-[#0F141F] text-white border-[#0F141F]'
+                          : 'bg-white text-[#0F141F] border-black/10 hover:bg-black/5'
+                      }`}
+                    >
+                      SignNow
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSignProvider('firma');
+                        setSignError(null);
+                        setSigningUrl(null);
+                        setSignStatus(null);
+                      }}
+                      className={`h-9 px-3 rounded-full border text-sm font-semibold ${
+                        signProvider === 'firma'
+                          ? 'bg-[#0F141F] text-white border-[#0F141F]'
+                          : 'bg-white text-[#0F141F] border-black/10 hover:bg-black/5'
+                      }`}
+                    >
+                      Firma
+                    </button>
+                  </div>
+                </div>
+
+                {signProvider === 'signnow' || signProvider === 'inhouse' ? (
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-[#111827]">Signing order</div>
+                      <div className="text-xs text-black/45 mt-1">Sequential = one-by-one. Parallel = invite all at once.</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSigningOrder('sequential')}
+                        className={`h-9 px-3 rounded-full border text-sm font-semibold ${
+                          signingOrder === 'sequential'
+                            ? 'bg-white border-black/30 text-[#0F141F]'
+                            : 'bg-white border-black/10 text-black/60 hover:bg-black/5'
+                        }`}
+                      >
+                        Sequential
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSigningOrder('parallel')}
+                        className={`h-9 px-3 rounded-full border text-sm font-semibold ${
+                          signingOrder === 'parallel'
+                            ? 'bg-white border-black/30 text-[#0F141F]'
+                            : 'bg-white border-black/10 text-black/60 hover:bg-black/5'
+                        }`}
+                      >
+                        Parallel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-xs text-black/45">Firma is treated as invite-all (parallel) in this UI.</div>
+                )}
+
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-sm font-semibold text-[#111827]">Signers</div>
                   <button
@@ -1342,16 +1506,18 @@ const ContractEditorPageV2: React.FC = () => {
           </div>
         )}
       </div>
-      <SignatureFieldPlacer
-        open={placerOpen}
-        pdfUrl={placerPdfUrl || ''}
-        signers={signers
-          .map((s) => ({ name: s.name.trim(), email: s.email.trim() }))
-          .filter((s) => s.name && s.email)}
-        initialPlacements={placerInitial || undefined}
-        onCancel={closePlacer}
-        onSave={saveTemplatePlacementsAndContinueFirma}
-      />
+      {signProvider === 'firma' ? (
+        <SignatureFieldPlacer
+          open={placerOpen}
+          pdfUrl={placerPdfUrl || ''}
+          signers={signers
+            .map((s) => ({ name: s.name.trim(), email: s.email.trim() }))
+            .filter((s) => s.name && s.email)}
+          initialPlacements={placerInitial || undefined}
+          onCancel={closePlacer}
+          onSave={saveTemplatePlacementsAndContinueFirma}
+        />
+      ) : null}
     </DashboardLayout>
   );
 };

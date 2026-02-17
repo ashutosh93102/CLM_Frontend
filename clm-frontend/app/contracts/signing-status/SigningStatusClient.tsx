@@ -306,6 +306,9 @@ export default function SigningStatusPage() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const contractId = searchParams?.get('id') || '';
+	const providerParam = String(searchParams?.get('provider') || 'firma').toLowerCase();
+	const provider: 'firma' | 'signnow' | 'inhouse' =
+		providerParam === 'inhouse' ? 'inhouse' : providerParam === 'signnow' ? 'signnow' : 'firma';
 
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -317,11 +320,12 @@ export default function SigningStatusPage() {
 	const [details, setDetails] = useState<any | null>(null);
 	const [reminders, setReminders] = useState<any | null>(null);
 	const [downloadingCert, setDownloadingCert] = useState(false);
+	const [downloadingSigned, setDownloadingSigned] = useState(false);
 	const [events, setEvents] = useState<Array<{ ts: number; type: string; message?: string; payload?: any }>>([]);
 	const [activity, setActivity] = useState<any[] | null>(null);
 	const lastStatusSigRef = useRef<string | null>(null);
 
-	const [liveEnabled, setLiveEnabled] = useState(true);
+	const [liveEnabled, setLiveEnabled] = useState(provider === 'firma');
 	const [liveState, setLiveState] = useState<'disconnected' | 'connected' | 'error'>('disconnected');
 	const [lastEventTs, setLastEventTs] = useState<number | null>(null);
 	const [lastRefreshMs, setLastRefreshMs] = useState<number | null>(null);
@@ -369,6 +373,19 @@ export default function SigningStatusPage() {
 		try {
 			const client = new ApiClient();
 
+			if (provider !== 'firma') {
+				const sRes = provider === 'inhouse' ? await client.inhouseStatus(contractId) : await client.esignStatus(contractId);
+				if (sRes.success) {
+					setStatusData(sRes.data);
+					setDetails(null);
+					setReminders(null);
+					setActivity(null);
+					setLastRefreshMs(Date.now());
+					return;
+				}
+				throw new Error(sRes.error || 'Failed to load signing status');
+			}
+
 			// Call status FIRST: backend syncs signer states and may write audit logs.
 			const sRes = await client.firmaStatus(contractId);
 			const [dRes, rRes, aRes] = await Promise.all([
@@ -403,6 +420,10 @@ export default function SigningStatusPage() {
 	};
 	const resendInvites = async () => {
 		if (!contractId) return;
+		if (provider !== 'firma') {
+			setError('Resend is only available for Firma provider.');
+			return;
+		}
 		try {
 			setError(null);
 			const client = new ApiClient();
@@ -425,7 +446,7 @@ export default function SigningStatusPage() {
 		setError(null);
 		void refreshAll().finally(() => setLoading(false));
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [contractId]);
+	}, [contractId, provider]);
 
 	const cleanupLiveResources = () => {
 		try {
@@ -446,6 +467,7 @@ export default function SigningStatusPage() {
 
 	const startLive = () => {
 		if (!contractId) return;
+		if (provider !== 'firma') return;
 		setLiveState('disconnected');
 		setLastEventTs(null);
 		cleanupLiveResources();
@@ -469,6 +491,11 @@ export default function SigningStatusPage() {
 
 	useEffect(() => {
 		if (!contractId) return;
+		if (provider !== 'firma') {
+			cleanupLiveResources();
+			setLiveState('disconnected');
+			return;
+		}
 		if (!liveEnabled) {
 			cleanupLiveResources();
 			setLiveState('disconnected');
@@ -477,10 +504,14 @@ export default function SigningStatusPage() {
 		startLive();
 		return () => cleanupLiveResources();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [contractId, liveEnabled]);
+	}, [contractId, liveEnabled, provider]);
 
 	const downloadCertificate = async () => {
 		if (!contractId) return;
+		if (provider !== 'firma') {
+			setError('Certificate is only available for Firma provider.');
+			return;
+		}
 		try {
 			setDownloadingCert(true);
 			setError(null);
@@ -500,6 +531,39 @@ export default function SigningStatusPage() {
 			URL.revokeObjectURL(blobUrl);
 		} finally {
 			setDownloadingCert(false);
+		}
+	};
+
+	const downloadSignedPdf = async () => {
+		if (!contractId) return;
+		if (!steps.completed) {
+			setError('Signing is not completed yet.');
+			return;
+		}
+		try {
+			setDownloadingSigned(true);
+			setError(null);
+			const client = new ApiClient();
+			const res =
+				provider === 'firma'
+					? await client.firmaDownloadExecutedPdf(contractId)
+					: provider === 'inhouse'
+						? await client.inhouseDownloadExecutedPdf(contractId)
+						: await client.esignDownloadExecutedPdf(contractId);
+			if (!res.success || !res.data) {
+				setError(res.error || 'Failed to download signed PDF');
+				return;
+			}
+			const blobUrl = URL.createObjectURL(res.data);
+			const a = document.createElement('a');
+			a.href = blobUrl;
+			a.download = `${safeFilenameBase}_signed.pdf`;
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			URL.revokeObjectURL(blobUrl);
+		} finally {
+			setDownloadingSigned(false);
 		}
 	};
 
@@ -562,14 +626,24 @@ export default function SigningStatusPage() {
 					<div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-2">
 					{steps.completed ? (
 						<>
-						<button
-							type="button"
-							onClick={() => void downloadCertificate()}
-							disabled={downloadingCert}
-							className="col-span-3 sm:col-span-auto h-9 sm:h-10 px-4 rounded-full bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-						>
-							{downloadingCert ? 'Downloading…' : 'Certificate'}
-						</button>
+							<button
+								type="button"
+								onClick={() => void downloadSignedPdf()}
+								disabled={downloadingSigned}
+								className="col-span-3 sm:col-span-auto h-9 sm:h-10 px-4 rounded-full bg-slate-900 text-white text-xs sm:text-sm font-semibold hover:bg-slate-800 disabled:opacity-60"
+							>
+								{downloadingSigned ? 'Downloading…' : 'Signed PDF'}
+							</button>
+							{provider === 'firma' ? (
+								<button
+									type="button"
+									onClick={() => void downloadCertificate()}
+									disabled={downloadingCert}
+									className="col-span-3 sm:col-span-auto h-9 sm:h-10 px-4 rounded-full bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+								>
+									{downloadingCert ? 'Downloading…' : 'Certificate'}
+								</button>
+							) : null}
 						</>
 					) : null}
 					<button
@@ -586,16 +660,18 @@ export default function SigningStatusPage() {
 					>
 						Refresh
 					</button>
-					<button
-						type="button"
-						onClick={() => void resendInvites()}
-						disabled={steps.completed}
-						className="col-span-1 h-9 sm:h-10 px-3 sm:px-4 rounded-full bg-rose-500 text-white text-xs sm:text-sm font-semibold hover:bg-rose-600 disabled:opacity-60"
-						title={steps.completed ? 'Already completed' : 'Resend signing notifications'}
-					>
-						<span className="hidden sm:inline">Resend notifications</span>
-						<span className="sm:hidden">Resend</span>
-					</button>
+					{provider === 'firma' ? (
+						<button
+							type="button"
+							onClick={() => void resendInvites()}
+							disabled={steps.completed}
+							className="col-span-1 h-9 sm:h-10 px-3 sm:px-4 rounded-full bg-rose-500 text-white text-xs sm:text-sm font-semibold hover:bg-rose-600 disabled:opacity-60"
+							title={steps.completed ? 'Already completed' : 'Resend signing notifications'}
+						>
+							<span className="hidden sm:inline">Resend notifications</span>
+							<span className="sm:hidden">Resend</span>
+						</button>
+					) : null}
 					</div>
 				</div>
 			</div>
