@@ -7,7 +7,6 @@ import DashboardLayout from './DashboardLayout';
 import RichTextEditor from './RichTextEditor';
 import { ApiClient, Contract } from '@/app/lib/api-client';
 import { sanitizeEditorHtml } from '@/app/lib/sanitize-html';
-import SignatureFieldPlacer, { type SignatureFieldPlacement } from './SignatureFieldPlacer';
 
 type TemplateListItem = {
   filename: string;
@@ -20,8 +19,6 @@ type SignerDraft = {
   email: string;
   name: string;
 };
-
-type SignProvider = 'inhouse' | 'signnow' | 'firma';
 
 type GenerationContext = {
   contractId: string;
@@ -75,7 +72,6 @@ const ContractEditorPageV2: React.FC = () => {
 
   // E-sign
   const [signOpen, setSignOpen] = useState(false);
-  const [signProvider, setSignProvider] = useState<SignProvider>('inhouse');
   const [signers, setSigners] = useState<SignerDraft[]>([{ email: '', name: '' }]);
   const [signingOrder, setSigningOrder] = useState<'sequential' | 'parallel'>('sequential');
   const [signing, setSigning] = useState(false);
@@ -83,32 +79,6 @@ const ContractEditorPageV2: React.FC = () => {
   const [signingUrl, setSigningUrl] = useState<string | null>(null);
   const [signStatusLoading, setSignStatusLoading] = useState(false);
   const [signStatus, setSignStatus] = useState<any | null>(null);
-  const [placerOpen, setPlacerOpen] = useState(false);
-  const [placerPdfUrl, setPlacerPdfUrl] = useState<string | null>(null);
-  const [placerTemplateFilename, setPlacerTemplateFilename] = useState<string | null>(null);
-  const [placerInitial, setPlacerInitial] = useState<SignatureFieldPlacement[] | null>(null);
-  const pendingFirmaStartRef = useRef<{
-    contract_id: string;
-    signers: Array<{ email: string; name: string }>;
-    signing_order: 'sequential' | 'parallel';
-  } | null>(null);
-
-  const closePlacer = () => {
-    setPlacerOpen(false);
-    setPlacerTemplateFilename(null);
-    setPlacerInitial(null);
-    pendingFirmaStartRef.current = null;
-    setPlacerPdfUrl((prev) => {
-      if (prev && typeof window !== 'undefined') {
-        try {
-          URL.revokeObjectURL(prev);
-        } catch {
-          // ignore
-        }
-      }
-      return null;
-    });
-  };
 
   const [generationCtx, setGenerationCtx] = useState<GenerationContext | null>(null);
   const [rehydrating, setRehydrating] = useState(false);
@@ -689,22 +659,9 @@ const ContractEditorPageV2: React.FC = () => {
     const u = (url || '').trim();
     if (!u) return 'Signing URL is missing';
 
-    if (signProvider === 'inhouse') {
-      if (u.startsWith('/')) return null;
-      if (/^https?:\/\//i.test(u)) return null;
-      return 'Signing URL is invalid.';
-    }
-
-    // Production safety: reject localhost/mock links.
-    const lower = u.toLowerCase();
-    if (lower.includes('localhost') || lower.includes('127.0.0.1') || lower.includes('/mock')) {
-      return 'Backend returned a localhost/mock signing link. Configure the real e-sign provider URLs on the backend.';
-    }
-    // Enforce absolute URL.
-    if (!/^https?:\/\//i.test(u)) {
-      return 'Signing URL is invalid (expected absolute URL).';
-    }
-    return null;
+    if (u.startsWith('/')) return null;
+    if (/^https?:\/\//i.test(u)) return null;
+    return 'Signing URL is invalid.';
   };
 
   const refreshSigningStatus = async () => {
@@ -713,12 +670,7 @@ const ContractEditorPageV2: React.FC = () => {
       setSignStatusLoading(true);
       setSignError(null);
       const client = new ApiClient();
-      const res =
-        signProvider === 'firma'
-          ? await client.firmaStatus(contractId)
-          : signProvider === 'inhouse'
-            ? await client.inhouseStatus(contractId)
-            : await client.esignStatus(contractId);
+      const res = await client.inhouseStatus(contractId);
       if (!res.success) {
         const msg = res.error || 'Failed to fetch status';
         setSignError(msg);
@@ -747,128 +699,10 @@ const ContractEditorPageV2: React.FC = () => {
       setSignError(null);
       const client = new ApiClient();
 
-      if (signProvider === 'inhouse') {
-        const res = await client.inhouseStart({
-          contract_id: contractId,
-          signers: cleaned,
-          signing_order: signingOrder,
-        });
-        if (!res.success) {
-          setSignError(res.error || 'Failed to start signing');
-          return;
-        }
-
-        const url = String((res.data as any)?.signing_url || '');
-        const urlErr = validateSigningUrl(url);
-        if (urlErr) {
-          setSignError(urlErr);
-          setSigningUrl(null);
-          return;
-        }
-
-        setSigningUrl(url);
-        window.open(url, '_blank', 'noopener,noreferrer');
-
-        // Move user to the dedicated progress page right away.
-        setSignOpen(false);
-        router.push(`/contracts/signing-status?id=${encodeURIComponent(contractId)}&provider=inhouse`);
-        return;
-      }
-
-      if (signProvider === 'signnow') {
-        const res = await client.esignStart({
-          contract_id: contractId,
-          signers: cleaned,
-          signing_order: signingOrder,
-        });
-        if (!res.success) {
-          setSignError(res.error || 'Failed to start signing');
-          return;
-        }
-
-        const url = String((res.data as any)?.signing_url || '');
-        const urlErr = validateSigningUrl(url);
-        if (urlErr) {
-          setSignError(urlErr);
-          setSigningUrl(null);
-          return;
-        }
-
-        setSigningUrl(url);
-        window.open(url, '_blank', 'noopener,noreferrer');
-
-        // Move user to the dedicated progress page right away.
-        setSignOpen(false);
-        router.push(`/contracts/signing-status?id=${encodeURIComponent(contractId)}&provider=signnow`);
-        return;
-      }
-
-      // Firma's multi-signer flow is always invite-all (parallel).
-      const effectiveSigningOrder: 'parallel' = 'parallel';
-
-      // Firma: open template-level placer first (when this contract is based on a file-template)
-      const templateFilename =
-        String((contract as any)?.metadata?.template_filename || (contract as any)?.metadata?.template || '') ||
-        String(generationCtx?.template || '');
-
-      if (templateFilename) {
-        // 1) fetch PDF for visual placement
-        const pdfRes = await client.downloadContractPdf(contractId);
-        if (!pdfRes.success || !pdfRes.data) {
-          setSignError(pdfRes.error || 'Failed to load PDF for signature placement');
-          return;
-        }
-        const url = URL.createObjectURL(pdfRes.data);
-
-        // 2) load existing placements from template meta (if any)
-        let initial: SignatureFieldPlacement[] = [];
-        const cfgRes = await client.getTemplateFileSignatureFieldsConfig(templateFilename);
-        if (cfgRes.success) {
-          const fields = (cfgRes.data as any)?.config?.fields;
-          if (Array.isArray(fields)) {
-            initial = fields
-              .filter((f: any) => f && f.type === 'signature' && f.position)
-              .map((f: any) => ({
-                recipient_index: Number(f.recipient_index ?? 0),
-                page_number: Number(f.page_number ?? 1),
-                position: {
-                  x: Number(f.position?.x ?? 10),
-                  y: Number(f.position?.y ?? 80),
-                  width: Number(f.position?.width ?? 30),
-                  height: Number(f.position?.height ?? 8),
-                },
-              }))
-              .filter((p: any) => Number.isFinite(p.recipient_index));
-          }
-        }
-
-        // Ensure each signer has a placement slot
-        const byIdx = new Map<number, SignatureFieldPlacement>();
-        for (const p of initial) byIdx.set(p.recipient_index, p);
-        const ensured: SignatureFieldPlacement[] = cleaned.map((_, idx) =>
-          byIdx.get(idx) || {
-            recipient_index: idx,
-            page_number: 1,
-            position: { x: 10, y: Math.max(10, 80 - idx * 12), width: 30, height: 8 },
-          }
-        );
-
-        pendingFirmaStartRef.current = {
-          contract_id: contractId,
-          signers: cleaned,
-          signing_order: effectiveSigningOrder,
-        };
-        setPlacerTemplateFilename(templateFilename);
-        setPlacerPdfUrl(url);
-        setPlacerInitial(ensured);
-        setPlacerOpen(true);
-        return;
-      }
-
-      const res = await client.firmaStart({
+      const res = await client.inhouseStart({
         contract_id: contractId,
         signers: cleaned,
-        signing_order: effectiveSigningOrder,
+        signing_order: signingOrder,
       });
       if (!res.success) {
         setSignError(res.error || 'Failed to start signing');
@@ -888,60 +722,10 @@ const ContractEditorPageV2: React.FC = () => {
 
       // Move user to the dedicated progress page right away.
       setSignOpen(false);
-      router.push(`/contracts/signing-status?id=${encodeURIComponent(contractId)}&provider=firma`);
+      router.push(`/contracts/signing-status?id=${encodeURIComponent(contractId)}`);
+      return;
     } catch (e) {
       setSignError(e instanceof Error ? e.message : 'Failed to start signing');
-    } finally {
-      setSigning(false);
-    }
-  };
-
-  const saveTemplatePlacementsAndContinueFirma = async (placements: SignatureFieldPlacement[]) => {
-    const templateFilename = placerTemplateFilename;
-    const pending = pendingFirmaStartRef.current;
-    if (!templateFilename || !pending) {
-      closePlacer();
-      setSignError('Missing template context for saving signature positions');
-      return;
-    }
-
-    try {
-      setSigning(true);
-      setSignError(null);
-
-      const client = new ApiClient();
-      const saveRes = await client.saveTemplateFileSignaturePositions(templateFilename, placements);
-      if (!saveRes.success) {
-        setSignError(saveRes.error || 'Failed to save signature positions for template');
-        return;
-      }
-
-      const res = await client.firmaStart({
-        contract_id: pending.contract_id,
-        signers: pending.signers,
-        signing_order: pending.signing_order,
-        force_upload: true,
-      });
-      if (!res.success) {
-        setSignError(res.error || 'Failed to start signing');
-        return;
-      }
-
-      const url = String((res.data as any)?.signing_url || '');
-      const urlErr = validateSigningUrl(url);
-      if (urlErr) {
-        setSignError(urlErr);
-        setSigningUrl(null);
-        return;
-      }
-
-      closePlacer();
-      setSigningUrl(url);
-      window.open(url, '_blank', 'noopener,noreferrer');
-
-      // Move user to the dedicated progress page right away.
-      setSignOpen(false);
-      router.push(`/contracts/signing-status?id=${encodeURIComponent(pending.contract_id)}&provider=firma`);
     } finally {
       setSigning(false);
     }
@@ -957,12 +741,7 @@ const ContractEditorPageV2: React.FC = () => {
       return;
     }
     const client = new ApiClient();
-    const res =
-      signProvider === 'firma'
-        ? await client.firmaDownloadExecutedPdf(contractId)
-        : signProvider === 'inhouse'
-          ? await client.inhouseDownloadExecutedPdf(contractId)
-          : await client.esignDownloadExecutedPdf(contractId);
+    const res = await client.inhouseDownloadExecutedPdf(contractId);
     if (res.success && res.data) {
       triggerDownload(res.data, `${title.replace(/\s+/g, '_')}_signed.pdf`);
     } else {
@@ -1270,93 +1049,35 @@ const ContractEditorPageV2: React.FC = () => {
 
               <div className="p-6 space-y-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="text-sm font-semibold text-[#111827]">Provider</div>
+                  <div>
+                    <div className="text-sm font-semibold text-[#111827]">Signing order</div>
+                    <div className="text-xs text-black/45 mt-1">Sequential = one-by-one. Parallel = invite all at once.</div>
+                  </div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => {
-                        setSignProvider('inhouse');
-                        setSignError(null);
-                        setSigningUrl(null);
-                        setSignStatus(null);
-                      }}
+                      onClick={() => setSigningOrder('sequential')}
                       className={`h-9 px-3 rounded-full border text-sm font-semibold ${
-                        signProvider === 'inhouse'
-                          ? 'bg-[#0F141F] text-white border-[#0F141F]'
-                          : 'bg-white text-[#0F141F] border-black/10 hover:bg-black/5'
+                        signingOrder === 'sequential'
+                          ? 'bg-white border-black/30 text-[#0F141F]'
+                          : 'bg-white border-black/10 text-black/60 hover:bg-black/5'
                       }`}
                     >
-                      Inhouse
+                      Sequential
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        setSignProvider('signnow');
-                        setSignError(null);
-                        setSigningUrl(null);
-                        setSignStatus(null);
-                      }}
+                      onClick={() => setSigningOrder('parallel')}
                       className={`h-9 px-3 rounded-full border text-sm font-semibold ${
-                        signProvider === 'signnow'
-                          ? 'bg-[#0F141F] text-white border-[#0F141F]'
-                          : 'bg-white text-[#0F141F] border-black/10 hover:bg-black/5'
+                        signingOrder === 'parallel'
+                          ? 'bg-white border-black/30 text-[#0F141F]'
+                          : 'bg-white border-black/10 text-black/60 hover:bg-black/5'
                       }`}
                     >
-                      SignNow
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSignProvider('firma');
-                        setSignError(null);
-                        setSigningUrl(null);
-                        setSignStatus(null);
-                      }}
-                      className={`h-9 px-3 rounded-full border text-sm font-semibold ${
-                        signProvider === 'firma'
-                          ? 'bg-[#0F141F] text-white border-[#0F141F]'
-                          : 'bg-white text-[#0F141F] border-black/10 hover:bg-black/5'
-                      }`}
-                    >
-                      Firma
+                      Parallel
                     </button>
                   </div>
                 </div>
-
-                {signProvider === 'signnow' || signProvider === 'inhouse' ? (
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-semibold text-[#111827]">Signing order</div>
-                      <div className="text-xs text-black/45 mt-1">Sequential = one-by-one. Parallel = invite all at once.</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setSigningOrder('sequential')}
-                        className={`h-9 px-3 rounded-full border text-sm font-semibold ${
-                          signingOrder === 'sequential'
-                            ? 'bg-white border-black/30 text-[#0F141F]'
-                            : 'bg-white border-black/10 text-black/60 hover:bg-black/5'
-                        }`}
-                      >
-                        Sequential
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSigningOrder('parallel')}
-                        className={`h-9 px-3 rounded-full border text-sm font-semibold ${
-                          signingOrder === 'parallel'
-                            ? 'bg-white border-black/30 text-[#0F141F]'
-                            : 'bg-white border-black/10 text-black/60 hover:bg-black/5'
-                        }`}
-                      >
-                        Parallel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-xs text-black/45">Firma is treated as invite-all (parallel) in this UI.</div>
-                )}
 
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-sm font-semibold text-[#111827]">Signers</div>
@@ -1508,18 +1229,6 @@ const ContractEditorPageV2: React.FC = () => {
           </div>
         )}
       </div>
-      {signProvider === 'firma' ? (
-        <SignatureFieldPlacer
-          open={placerOpen}
-          pdfUrl={placerPdfUrl || ''}
-          signers={signers
-            .map((s) => ({ name: s.name.trim(), email: s.email.trim() }))
-            .filter((s) => s.name && s.email)}
-          initialPlacements={placerInitial || undefined}
-          onCancel={closePlacer}
-          onSave={saveTemplatePlacementsAndContinueFirma}
-        />
-      ) : null}
     </DashboardLayout>
   );
 };

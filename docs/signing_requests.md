@@ -6,43 +6,23 @@
 
 ## Key modules
 
-- API client: `app/lib/api-client.ts` (Firma stream + signing URL helpers)
-- Contracts UI often links into signing flows.
+- API client: `app/lib/api-client.ts` (in-house e-sign requests, status, downloads)
+- Contracts UI links into in-house signing flows.
 
 ## Backend endpoints used (typical)
 
-### SignNow
+### In-house e-sign
 
-- `POST /api/v1/esign/send/`
-- `GET /api/v1/esign/signing-url/{contract_id}/`
-- `GET /api/v1/esign/status/{contract_id}/`
-
-### Firma
-
-- `POST /api/v1/firma/esign/send/`
-- `GET /api/v1/firma/esign/signing-url/{contract_id}/`
-- `GET /api/v1/firma/esign/status/{contract_id}/`
-- `GET /api/v1/firma/esign/requests/`
-- `DELETE /api/v1/firma/esign/requests/{record_id}/` (delete local tracking record)
-
-Realtime updates:
-
-- `GET /api/v1/firma/webhooks/stream/{contract_id}/`
+- `POST /api/v1/inhouse/esign/start/`
+- `GET /api/v1/inhouse/esign/requests/`
+- `GET /api/v1/inhouse/esign/status/{contract_id}/`
+- `GET /api/v1/inhouse/esign/audit/{contract_id}/`
+- `GET /api/v1/inhouse/esign/executed/{contract_id}/`
+- `GET /api/v1/inhouse/esign/certificate/{contract_id}/`
 
 ## Approach
 
-### “Tracking record” model
-
-The UI treats Firma signing requests as:
-
-- a backend vendor state (Firma)
-- plus a local tracking record the UI can list and delete
-
-Deleting a signing request in the UI deletes the tracking record (not necessarily the vendor artifact).
-
-### Realtime updates
-
-The client uses a streaming endpoint (via `fetch()` streaming) so it can attach Authorization headers.
+The UI treats in-house signing requests as the source of truth, and uses the status + audit endpoints to show progress.
 
 ## How to verify locally
 
@@ -50,4 +30,4 @@ The client uses a streaming endpoint (via `fetch()` streaming) so it can attach 
 2) Create/upload a contract.
 3) Send for signature.
 4) Open `/signing-requests` and confirm the request is listed.
-5) Delete the request and confirm it disappears.
+5) Open `/contracts/signing-status?id={contract_id}` and confirm “Audit Logs” shows events.

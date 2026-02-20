@@ -98,6 +98,15 @@ export default function SignatureFieldPlacer({
 
   const palette = ['#2563eb', '#16a34a', '#dc2626', '#9333ea', '#0ea5e9', '#f97316'];
 
+  const signerByRecipientIndex = useMemo(() => {
+    const m = new Map<number, PlacerSigner>();
+    signers.forEach((s, idx) => {
+      const recipientIndex = typeof s.recipient_index === 'number' ? Number(s.recipient_index) : idx;
+      if (!m.has(recipientIndex)) m.set(recipientIndex, s);
+    });
+    return m;
+  }, [signers]);
+
   // Reconcile placements with signers
   useEffect(() => {
     if (!open) return;
@@ -204,6 +213,10 @@ export default function SignatureFieldPlacer({
           standardFontDataUrl: '/pdfjs/standard_fonts/',
           cMapUrl: '/pdfjs/cmaps/',
           cMapPacked: true,
+          // In dev/prod, this PDF is often served from a different origin.
+          // Disabling range/stream avoids CORS preflights on `Range` and prevents a blank canvas when the server doesn't support partial content.
+          disableRange: true,
+          disableStream: true,
         });
         loadingTaskRef.current = task;
         const doc = await task.promise;
@@ -247,49 +260,53 @@ export default function SignatureFieldPlacer({
     const seq = ++renderSeqRef.current;
 
     const run = async () => {
-      const prev = renderTaskRef.current;
-      if (prev) {
-        try {
-          prev.cancel();
-        } catch {
-          // ignore
-        }
-        try {
-          await prev.promise;
-        } catch {
-          // ignore
-        }
-      }
-
-      const pg = await doc.getPage(page);
-      if (cancelled || renderSeqRef.current !== seq) return;
-
-      const containerW = containerWidth || containerRef.current?.clientWidth || 980;
-      const viewport1 = pg.getViewport({ scale: 1 });
-      const fitWidthScale = (Math.max(360, containerW) - 24) / viewport1.width;
-      const scale = Math.max(0.25, Math.min(2.25, fitWidthScale * DEFAULT_ZOOM_FACTOR));
-      const viewport = pg.getViewport({ scale });
-
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      canvas.width = Math.floor(viewport.width);
-      canvas.height = Math.floor(viewport.height);
-      setPagePx({ w: canvas.width, h: canvas.height });
-
-      const task = pg.render({ canvasContext: ctx, viewport });
-      renderTaskRef.current = task;
-
       try {
-        await task.promise;
-      } catch (e: any) {
-        // Expected when we cancel on resize/page change.
-        const name = String(e?.name || '');
-        const msg = String(e?.message || '');
-        const isCancel = name.toLowerCase().includes('cancel') || msg.toLowerCase().includes('cancel');
-        if (!isCancel && !cancelled) {
-          setLoadError(msg || 'Failed to render PDF');
+        const prev = renderTaskRef.current;
+        if (prev) {
+          try {
+            prev.cancel();
+          } catch {
+            // ignore
+          }
+          try {
+            await prev.promise;
+          } catch {
+            // ignore
+          }
         }
+
+        const pg = await doc.getPage(page);
+        if (cancelled || renderSeqRef.current !== seq) return;
+
+        const containerW = containerWidth || containerRef.current?.clientWidth || 980;
+        const viewport1 = pg.getViewport({ scale: 1 });
+        const fitWidthScale = (Math.max(360, containerW) - 24) / viewport1.width;
+        const scale = Math.max(0.25, Math.min(2.25, fitWidthScale * DEFAULT_ZOOM_FACTOR));
+        const viewport = pg.getViewport({ scale });
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        setPagePx({ w: canvas.width, h: canvas.height });
+
+        const task = pg.render({ canvasContext: ctx, viewport });
+        renderTaskRef.current = task;
+
+        try {
+          await task.promise;
+        } catch (e: any) {
+          // Expected when we cancel on resize/page change.
+          const name = String(e?.name || '');
+          const msg = String(e?.message || '');
+          const isCancel = name.toLowerCase().includes('cancel') || msg.toLowerCase().includes('cancel');
+          if (!isCancel && !cancelled) {
+            setLoadError(msg || 'Failed to render PDF');
+          }
+        }
+      } catch (e) {
+        if (!cancelled) setLoadError(e instanceof Error ? e.message : 'Failed to render PDF');
       }
     };
 
@@ -349,7 +366,7 @@ export default function SignatureFieldPlacer({
         <div className="px-6 pt-6 pb-4 border-b border-black/5 flex items-start justify-between gap-3">
           <div>
             <p className="text-lg font-bold text-[#111827]">Place signature fields</p>
-            <p className="text-xs text-black/45 mt-1">Drag and resize. Positions are saved per template and used by Firma.</p>
+            <p className="text-xs text-black/45 mt-1">Drag and resize. Positions are saved and used by in-house signing.</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -393,8 +410,9 @@ export default function SignatureFieldPlacer({
 
             <div className="space-y-3">
               {signers.map((s, idx) => {
-                const p = placements.find((pp) => pp.recipient_index === idx);
-                const color = palette[idx % palette.length];
+                const recipientIndex = typeof s.recipient_index === 'number' ? Number(s.recipient_index) : idx;
+                const p = placements.find((pp) => pp.recipient_index === recipientIndex);
+                const color = palette[recipientIndex % palette.length];
                 return (
                   <div key={`${s.email}-${idx}`} className="rounded-2xl border border-black/10 bg-white p-4">
                     <div className="flex items-start justify-between gap-2">
@@ -410,7 +428,7 @@ export default function SignatureFieldPlacer({
                       <select
                         className="w-full h-9 rounded-2xl bg-white border border-black/10 px-3 text-sm outline-none"
                         value={p?.page_number || 1}
-                        onChange={(e) => updatePlacement(idx, { page_number: Number(e.target.value) || 1 })}
+                        onChange={(e) => updatePlacement(recipientIndex, { page_number: Number(e.target.value) || 1 })}
                       >
                         {Array.from({ length: numPages }, (_, i) => i + 1).map((n) => (
                           <option key={n} value={n}>
@@ -420,9 +438,13 @@ export default function SignatureFieldPlacer({
                       </select>
                     </div>
 
-                    <div className="mt-2 text-[11px] text-black/45">
-                      x={p?.position.x.toFixed(1)}%, y={p?.position.y.toFixed(1)}%, w={p?.position.width.toFixed(1)}%, h={p?.position.height.toFixed(1)}%
-                    </div>
+                    {p ? (
+                      <div className="mt-2 text-[11px] text-black/45">
+                        x={p.position.x.toFixed(1)}%, y={p.position.y.toFixed(1)}%, w={p.position.width.toFixed(1)}%, h={p.position.height.toFixed(1)}%
+                      </div>
+                    ) : (
+                      <div className="mt-2 text-[11px] text-black/45">No field yet.</div>
+                    )}
 
                     <button
                       type="button"
@@ -431,6 +453,23 @@ export default function SignatureFieldPlacer({
                     >
                       Jump to field
                     </button>
+
+                    {!p ? (
+                      <button
+                        type="button"
+                        className="mt-2 w-full h-9 rounded-full bg-[#0F141F] text-white text-sm font-semibold hover:bg-[#0F141F]/90"
+                        onClick={() => {
+                          setPlacements((prev) => {
+                            const exists = prev.some((pp) => pp.recipient_index === recipientIndex);
+                            if (exists) return prev;
+                            const fallback = defaultPlacementsForSigners([{ name: s.name, email: s.email, recipient_index: recipientIndex }])[0];
+                            return [...prev, normalizePlacement(fallback)];
+                          });
+                        }}
+                      >
+                        Add field
+                      </button>
+                    ) : null}
                   </div>
                 );
               })}
@@ -485,7 +524,9 @@ export default function SignatureFieldPlacer({
                       const wPx = (p.position.width / 100) * pagePx.w;
                       const hPx = (p.position.height / 100) * pagePx.h;
 
-                      const label = signers[idx]?.name ? `Sign: ${signers[idx].name}` : `Signature ${idx + 1}`;
+                      const signer = signerByRecipientIndex.get(idx);
+                      const signerLabel = signer?.name || signer?.email || '';
+                      const label = signerLabel ? `Sign: ${signerLabel}` : `Signature ${idx + 1}`;
 
                       return (
                         <Rnd

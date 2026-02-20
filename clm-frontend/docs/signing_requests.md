@@ -19,15 +19,11 @@
 
 ### Firma
 
-- `POST /api/v1/firma/esign/send/`
-- `GET /api/v1/firma/esign/signing-url/{contract_id}/`
-- `GET /api/v1/firma/esign/status/{contract_id}/`
-- `GET /api/v1/firma/esign/requests/`
-- `DELETE /api/v1/firma/esign/requests/{record_id}/` (delete local tracking record)
+- (Removed) Third-party signing request endpoints
 
 Realtime updates:
 
-- `GET /api/v1/firma/webhooks/stream/{contract_id}/`
+- (Removed) Third-party webhook stream endpoint
 
 ## Approach
 

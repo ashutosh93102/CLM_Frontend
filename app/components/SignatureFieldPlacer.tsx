@@ -202,6 +202,10 @@ export default function SignatureFieldPlacer({
           standardFontDataUrl: '/pdfjs/standard_fonts/',
           cMapUrl: '/pdfjs/cmaps/',
           cMapPacked: true,
+          // In dev/prod, this PDF is often served from a different origin.
+          // Disabling range/stream avoids CORS preflights on `Range` and prevents a blank canvas when the server doesn't support partial content.
+          disableRange: true,
+          disableStream: true,
         });
         loadingTaskRef.current = task;
         const doc = await task.promise;
@@ -245,49 +249,53 @@ export default function SignatureFieldPlacer({
     const seq = ++renderSeqRef.current;
 
     const run = async () => {
-      const prev = renderTaskRef.current;
-      if (prev) {
-        try {
-          prev.cancel();
-        } catch {
-          // ignore
-        }
-        try {
-          await prev.promise;
-        } catch {
-          // ignore
-        }
-      }
-
-      const pg = await doc.getPage(page);
-      if (cancelled || renderSeqRef.current !== seq) return;
-
-      const containerW = containerWidth || containerRef.current?.clientWidth || 980;
-      const viewport1 = pg.getViewport({ scale: 1 });
-      const fitWidthScale = (Math.max(360, containerW) - 24) / viewport1.width;
-      const scale = Math.max(0.25, Math.min(2.25, fitWidthScale * DEFAULT_ZOOM_FACTOR));
-      const viewport = pg.getViewport({ scale });
-
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      canvas.width = Math.floor(viewport.width);
-      canvas.height = Math.floor(viewport.height);
-      setPagePx({ w: canvas.width, h: canvas.height });
-
-      const task = pg.render({ canvasContext: ctx, viewport });
-      renderTaskRef.current = task;
-
       try {
-        await task.promise;
-      } catch (e: any) {
-        // Expected when we cancel on resize/page change.
-        const name = String(e?.name || '');
-        const msg = String(e?.message || '');
-        const isCancel = name.toLowerCase().includes('cancel') || msg.toLowerCase().includes('cancel');
-        if (!isCancel && !cancelled) {
-          setLoadError(msg || 'Failed to render PDF');
+        const prev = renderTaskRef.current;
+        if (prev) {
+          try {
+            prev.cancel();
+          } catch {
+            // ignore
+          }
+          try {
+            await prev.promise;
+          } catch {
+            // ignore
+          }
         }
+
+        const pg = await doc.getPage(page);
+        if (cancelled || renderSeqRef.current !== seq) return;
+
+        const containerW = containerWidth || containerRef.current?.clientWidth || 980;
+        const viewport1 = pg.getViewport({ scale: 1 });
+        const fitWidthScale = (Math.max(360, containerW) - 24) / viewport1.width;
+        const scale = Math.max(0.25, Math.min(2.25, fitWidthScale * DEFAULT_ZOOM_FACTOR));
+        const viewport = pg.getViewport({ scale });
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        setPagePx({ w: canvas.width, h: canvas.height });
+
+        const task = pg.render({ canvasContext: ctx, viewport });
+        renderTaskRef.current = task;
+
+        try {
+          await task.promise;
+        } catch (e: any) {
+          // Expected when we cancel on resize/page change.
+          const name = String(e?.name || '');
+          const msg = String(e?.message || '');
+          const isCancel = name.toLowerCase().includes('cancel') || msg.toLowerCase().includes('cancel');
+          if (!isCancel && !cancelled) {
+            setLoadError(msg || 'Failed to render PDF');
+          }
+        }
+      } catch (e) {
+        if (!cancelled) setLoadError(e instanceof Error ? e.message : 'Failed to render PDF');
       }
     };
 
@@ -347,7 +355,7 @@ export default function SignatureFieldPlacer({
         <div className="px-6 pt-6 pb-4 border-b border-black/5 flex items-start justify-between gap-3">
           <div>
             <p className="text-lg font-bold text-[#111827]">Place signature fields</p>
-            <p className="text-xs text-black/45 mt-1">Drag and resize. Positions are saved per template and used by Firma.</p>
+            <p className="text-xs text-black/45 mt-1">Drag and resize. Positions are saved and used by in-house signing.</p>
           </div>
           <div className="flex items-center gap-2">
             <button

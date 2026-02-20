@@ -106,6 +106,17 @@ function toDisplayString(value: any): string {
 	return String(value);
 }
 
+function prettyAuditEvent(value: any): string {
+	const raw = String(value || '').trim();
+	if (!raw) return 'Event';
+	return raw
+		.replace(/_/g, ' ')
+		.split(/\s+/)
+		.filter(Boolean)
+		.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+		.join(' ');
+}
+
 function StatusBadge(props: { label: string }) {
 	const raw = String(props.label || '').trim();
 	const lower = raw.toLowerCase();
@@ -175,7 +186,7 @@ function StatusIcon(props: { status: string }) {
 	return <Clock3 className="h-4 w-4 text-amber-600" aria-hidden="true" />;
 }
 
-function normalizeFirmaStatusLabel(value: any): string {
+function normalizeStatusLabel(value: any): string {
 	const raw = String(value || '').trim();
 	const lc = raw.toLowerCase();
 	if (lc === 'finished') return 'completed';
@@ -196,7 +207,7 @@ function isSignedStatus(status: any): boolean {
 
 function signerStatusLabel(s: any): string {
 	const raw = String(s?.status || '').trim();
-	if (raw) return normalizeFirmaStatusLabel(raw);
+	if (raw) return normalizeStatusLabel(raw);
 	if (s?.has_signed) return 'signed';
 	return 'pending';
 }
@@ -306,9 +317,6 @@ export default function SigningStatusPage() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const contractId = searchParams?.get('id') || '';
-	const providerParam = String(searchParams?.get('provider') || 'firma').toLowerCase();
-	const provider: 'firma' | 'signnow' | 'inhouse' =
-		providerParam === 'inhouse' ? 'inhouse' : providerParam === 'signnow' ? 'signnow' : 'firma';
 
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -317,21 +325,13 @@ export default function SigningStatusPage() {
 	// which caused noisy repeated 404s because this page polls frequently.
 
 	const [statusData, setStatusData] = useState<any | null>(null);
-	const [details, setDetails] = useState<any | null>(null);
-	const [reminders, setReminders] = useState<any | null>(null);
+	const [auditLogs, setAuditLogs] = useState<any[]>([]);
+	const [auditLoading, setAuditLoading] = useState(false);
+	const [auditError, setAuditError] = useState<string | null>(null);
 	const [downloadingCert, setDownloadingCert] = useState(false);
 	const [downloadingSigned, setDownloadingSigned] = useState(false);
-	const [events, setEvents] = useState<Array<{ ts: number; type: string; message?: string; payload?: any }>>([]);
-	const [activity, setActivity] = useState<any[] | null>(null);
-	const lastStatusSigRef = useRef<string | null>(null);
-
-	const [liveEnabled, setLiveEnabled] = useState(provider === 'firma');
-	const [liveState, setLiveState] = useState<'disconnected' | 'connected' | 'error'>('disconnected');
-	const [lastEventTs, setLastEventTs] = useState<number | null>(null);
 	const [lastRefreshMs, setLastRefreshMs] = useState<number | null>(null);
 	const [copiedIdAt, setCopiedIdAt] = useState<number | null>(null);
-	const streamCloseRef = useRef<null | (() => void)>(null);
-	const pollRef = useRef<number | null>(null);
 
 	const steps = useMemo(() => computeSteps(statusData), [statusData]);
 	const declined = useMemo(() => {
@@ -342,24 +342,10 @@ export default function SigningStatusPage() {
 	}, [statusData]);
 
 	const displayTitle = useMemo(() => {
-		const d: any = details as any;
 		const s: any = statusData as any;
-		const picked =
-			d?.title ||
-			d?.name ||
-			d?.document_title ||
-			d?.document_name ||
-			d?.document?.title ||
-			d?.document?.name ||
-			d?.signing_request?.title ||
-			d?.signing_request?.name ||
-			s?.title ||
-			s?.name ||
-			s?.document_title ||
-			s?.document_name ||
-			'Signing status';
+		const picked = s?.title || s?.name || s?.document_title || s?.document_name || 'Signing status';
 		return String(picked || 'Signing status');
-	}, [details, statusData]);
+	}, [statusData]);
 
 	const safeFilenameBase = useMemo(() => {
 		const raw = String(displayTitle || contractId || 'contract').trim();
@@ -372,73 +358,27 @@ export default function SigningStatusPage() {
 		if (!contractId) return;
 		try {
 			const client = new ApiClient();
-
-			if (provider !== 'firma') {
-				const sRes = provider === 'inhouse' ? await client.inhouseStatus(contractId) : await client.esignStatus(contractId);
-				if (sRes.success) {
-					setStatusData(sRes.data);
-					setDetails(null);
-					setReminders(null);
-					setActivity(null);
-					setLastRefreshMs(Date.now());
-					return;
-				}
-				throw new Error(sRes.error || 'Failed to load signing status');
-			}
-
-			// Call status FIRST: backend syncs signer states and may write audit logs.
-			const sRes = await client.firmaStatus(contractId);
-			const [dRes, rRes, aRes] = await Promise.all([
-				client.firmaDetails(contractId),
-				client.firmaReminders(contractId),
-				client.firmaActivityLog(contractId, 50),
+			setAuditLoading(true);
+			setAuditError(null);
+			const [sRes, aRes] = await Promise.all([
+				client.inhouseStatus(contractId),
+				client.inhouseAudit(contractId, { limit: 200 }),
 			]);
-
-			if (sRes.success) {
-				setStatusData(sRes.data);
-				try {
-					const d: any = sRes.data as any;
-					const sig = JSON.stringify({ status: d?.status, all_signed: d?.all_signed, signers: d?.signers || [] });
-					if (lastStatusSigRef.current && lastStatusSigRef.current !== sig) {
-						setEvents((prev) => [{ ts: Date.now(), type: 'status_update', message: 'Status changed', payload: d }, ...prev].slice(0, 50));
-					}
-					lastStatusSigRef.current = sig;
-				} catch {
-					// ignore
-				}
-			}
-			if (dRes.success) setDetails(dRes.data);
-			if (rRes.success) setReminders(rRes.data);
-			if (aRes.success) setActivity((aRes.data as any)?.results || []);
-			if (!sRes.success && !dRes.success && !rRes.success && !aRes.success) {
-				throw new Error(sRes.error || dRes.error || rRes.error || aRes.error || 'Failed to load signing status');
+			if (!sRes.success) throw new Error(sRes.error || 'Failed to load signing status');
+			setStatusData(sRes.data);
+			if (aRes.success) {
+				const logs = Array.isArray((aRes.data as any)?.logs) ? (aRes.data as any).logs : [];
+				setAuditLogs(logs);
+			} else {
+				setAuditError(aRes.error || 'Failed to load audit logs');
 			}
 			setLastRefreshMs(Date.now());
 		} catch (e) {
 			setError(e instanceof Error ? e.message : 'Failed to load signing status');
+		} finally {
+			setAuditLoading(false);
 		}
 	};
-	const resendInvites = async () => {
-		if (!contractId) return;
-		if (provider !== 'firma') {
-			setError('Resend is only available for Firma provider.');
-			return;
-		}
-		try {
-			setError(null);
-			const client = new ApiClient();
-			const res = await client.firmaResendInvites(contractId);
-			if (!res.success) {
-				setError(res.error || 'Failed to resend notifications');
-				return;
-			}
-			setEvents((prev) => [{ ts: Date.now(), type: 'invite_resent', message: 'Resent signing notifications' }, ...prev].slice(0, 50));
-			void refreshAll();
-		} catch (e) {
-			setError(e instanceof Error ? e.message : 'Failed to resend notifications');
-		}
-	};
-
 
 	useEffect(() => {
 		if (!contractId) return;
@@ -446,77 +386,15 @@ export default function SigningStatusPage() {
 		setError(null);
 		void refreshAll().finally(() => setLoading(false));
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [contractId, provider]);
-
-	const cleanupLiveResources = () => {
-		try {
-			streamCloseRef.current?.();
-		} catch {
-			// ignore
-		}
-		streamCloseRef.current = null;
-		if (pollRef.current && typeof window !== 'undefined') window.clearInterval(pollRef.current);
-		pollRef.current = null;
-	};
-
-	const stopLive = () => {
-		setLiveEnabled(false);
-		setLiveState('disconnected');
-		cleanupLiveResources();
-	};
-
-	const startLive = () => {
-		if (!contractId) return;
-		if (provider !== 'firma') return;
-		setLiveState('disconnected');
-		setLastEventTs(null);
-		cleanupLiveResources();
-
-		const client = new ApiClient();
-		const sub = client.firmaWebhookStream(contractId, {
-			onReady: () => setLiveState('connected'),
-			onError: () => setLiveState('error'),
-			onEvent: (evt: { event?: string; data?: any; raw?: string }) => {
-				setLastEventTs(Date.now());
-				setEvents((prev) => [{ ts: Date.now(), type: evt.event || 'firma', payload: evt.data }, ...prev].slice(0, 50));
-				void refreshAll();
-			},
-		});
-		streamCloseRef.current = sub.close;
-
-		if (typeof window !== 'undefined') {
-			pollRef.current = window.setInterval(() => void refreshAll(), 10000);
-		}
-	};
-
-	useEffect(() => {
-		if (!contractId) return;
-		if (provider !== 'firma') {
-			cleanupLiveResources();
-			setLiveState('disconnected');
-			return;
-		}
-		if (!liveEnabled) {
-			cleanupLiveResources();
-			setLiveState('disconnected');
-			return;
-		}
-		startLive();
-		return () => cleanupLiveResources();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [contractId, liveEnabled, provider]);
+	}, [contractId]);
 
 	const downloadCertificate = async () => {
 		if (!contractId) return;
-		if (provider !== 'firma') {
-			setError('Certificate is only available for Firma provider.');
-			return;
-		}
 		try {
 			setDownloadingCert(true);
 			setError(null);
 			const client = new ApiClient();
-			const res = await client.firmaDownloadCertificate(contractId);
+			const res = await client.inhouseDownloadCertificate(contractId);
 			if (!res.success || !res.data) {
 				setError(res.error || 'Failed to download certificate');
 				return;
@@ -544,12 +422,7 @@ export default function SigningStatusPage() {
 			setDownloadingSigned(true);
 			setError(null);
 			const client = new ApiClient();
-			const res =
-				provider === 'firma'
-					? await client.firmaDownloadExecutedPdf(contractId)
-					: provider === 'inhouse'
-						? await client.inhouseDownloadExecutedPdf(contractId)
-						: await client.esignDownloadExecutedPdf(contractId);
+			const res = await client.inhouseDownloadExecutedPdf(contractId);
 			if (!res.success || !res.data) {
 				setError(res.error || 'Failed to download signed PDF');
 				return;
@@ -617,7 +490,6 @@ export default function SigningStatusPage() {
 						) : null}
 						<div className="flex flex-wrap gap-x-2 gap-y-1">
 							{lastRefreshMs ? <span>Last update: {formatRelative(Date.now() - lastRefreshMs)}</span> : null}
-							{lastEventTs ? <span>· Last event: {new Date(lastEventTs).toLocaleTimeString()}</span> : null}
 						</div>
 					</div>
 				</div>
@@ -634,16 +506,14 @@ export default function SigningStatusPage() {
 							>
 								{downloadingSigned ? 'Downloading…' : 'Signed PDF'}
 							</button>
-							{provider === 'firma' ? (
-								<button
-									type="button"
-									onClick={() => void downloadCertificate()}
-									disabled={downloadingCert}
-									className="col-span-3 sm:col-span-auto h-9 sm:h-10 px-4 rounded-full bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-								>
-									{downloadingCert ? 'Downloading…' : 'Certificate'}
-								</button>
-							) : null}
+							<button
+								type="button"
+								onClick={() => void downloadCertificate()}
+								disabled={downloadingCert}
+								className="col-span-3 sm:col-span-auto h-9 sm:h-10 px-4 rounded-full bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+							>
+								{downloadingCert ? 'Downloading…' : 'Certificate'}
+							</button>
 						</>
 					) : null}
 					<button
@@ -660,18 +530,6 @@ export default function SigningStatusPage() {
 					>
 						Refresh
 					</button>
-					{provider === 'firma' ? (
-						<button
-							type="button"
-							onClick={() => void resendInvites()}
-							disabled={steps.completed}
-							className="col-span-1 h-9 sm:h-10 px-3 sm:px-4 rounded-full bg-rose-500 text-white text-xs sm:text-sm font-semibold hover:bg-rose-600 disabled:opacity-60"
-							title={steps.completed ? 'Already completed' : 'Resend signing notifications'}
-						>
-							<span className="hidden sm:inline">Resend notifications</span>
-							<span className="sm:hidden">Resend</span>
-						</button>
-					) : null}
 					</div>
 				</div>
 			</div>
@@ -685,7 +543,7 @@ export default function SigningStatusPage() {
 						<div className="text-sm font-extrabold text-slate-900">Signature Tracking</div>
 						{declined ? (
 							<div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-								A recipient declined the signing request. You can update recipients and click “Resend notifications”.
+								A recipient declined the signing request. You can update recipients in the editor and resend invitations.
 							</div>
 						) : null}
 						<div className="sm:hidden">
@@ -758,12 +616,50 @@ export default function SigningStatusPage() {
 						</div>
 					</div>
 
+						<div className="bg-white rounded-3xl border border-slate-200 p-4 sm:p-6">
+							<div className="flex items-center justify-between">
+								<div className="text-sm font-extrabold text-slate-900">Audit Logs</div>
+								<div className="text-xs text-slate-500">{auditLogs.length ? `${auditLogs.length} events` : '—'}</div>
+							</div>
+
+							<div className="mt-4 space-y-2">
+								{auditLoading ? <div className="text-sm text-slate-500">Loading audit logs…</div> : null}
+								{auditError ? <div className="text-sm text-rose-600">{auditError}</div> : null}
+								{!auditLoading && !auditError && auditLogs.length === 0 ? (
+									<div className="text-sm text-slate-500">No audit events yet.</div>
+								) : null}
+								{auditLogs.map((it: any, idx: number) => {
+									const createdAt = (it as any)?.created_at;
+									const signer = (it as any)?.signer;
+									const signerName = signer ? signerDisplayName(signer, 0) : '';
+									const signerEmail = signer ? String(signer?.email || '').trim() : '';
+									const title = prettyAuditEvent((it as any)?.event);
+									const message = String((it as any)?.message || '').trim();
+									return (
+										<div key={`${String((it as any)?.id || '')}-${idx}`} className="rounded-2xl border border-slate-200 p-3">
+											<div className="flex items-start justify-between gap-3">
+												<div className="min-w-0">
+													<div className="text-sm font-semibold text-slate-900 break-words">{title}</div>
+													{(signerName || signerEmail) ? (
+														<div className="mt-0.5 text-[11px] text-slate-500 break-all">
+															{signerName ? signerName : signerEmail}
+															{signerName && signerEmail ? ` (${signerEmail})` : ''}
+													</div>
+												) : null}
+												{message ? <div className="mt-1 text-xs text-slate-700 break-words">{message}</div> : null}
+											</div>
+											<div className="text-[11px] text-slate-400 flex-shrink-0">{formatMaybeDate(createdAt)}</div>
+										</div>
+									</div>
+									);
+								})}
+							</div>
+						</div>
+
 					<div className="bg-white rounded-3xl border border-slate-200 p-6">
 						<div className="flex items-center justify-between">
 							<div className="text-sm font-extrabold text-slate-900">Summary Details</div>
-							<div className="text-xs text-slate-500">
-								Live: {liveEnabled ? (liveState === 'connected' ? 'connected' : liveState) : 'off'}
-							</div>
+							<div className="text-xs text-slate-500">Provider: In-house</div>
 						</div>
 
 						<div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -779,139 +675,21 @@ export default function SigningStatusPage() {
 								</div>
 							</div>
 							<div className="rounded-2xl border border-slate-200 p-4">
-								<div className="text-xs font-semibold text-slate-700">Reminders</div>
-								{(() => {
-									const r = (reminders as any)?.reminders ?? (reminders as any);
-									const enabled = pickFirst(r, ['enabled', 'is_enabled', 'active']);
-									const nextAt = pickFirst(r, ['next_scheduled_at', 'next_run_at', 'next_at']);
-									const lastAt = pickFirst(r, ['last_sent_at', 'last_run_at', 'last_at']);
-									const interval = pickFirst(r, ['interval_days', 'interval', 'frequency']);
-									return (
-										<div className="mt-2 space-y-1 text-xs text-slate-600">
-											<div>Enabled: <span className="font-semibold text-slate-900">{enabled === null ? '—' : String(Boolean(enabled))}</span></div>
-											<div>Next: <span className="font-semibold text-slate-900">{formatMaybeDate(nextAt)}</span></div>
-											<div>Last: <span className="font-semibold text-slate-900">{formatMaybeDate(lastAt)}</span></div>
-											{interval !== null ? <div>Interval: <span className="font-semibold text-slate-900">{String(interval)}</span></div> : null}
-										</div>
-									);
-								})()}
+								<div className="text-xs font-semibold text-slate-700">Dates</div>
+								<div className="mt-2 space-y-1 text-xs text-slate-600">
+									<div>Created: <span className="font-semibold text-slate-900">{formatMaybeDate(pickFirst(statusData, ['created_at', 'createdAt', 'created']))}</span></div>
+									<div>Completed: <span className="font-semibold text-slate-900">{formatMaybeDate(pickFirst(statusData, ['completed_at', 'completedAt', 'executed_at', 'finished_at']))}</span></div>
+									<div>Expires: <span className="font-semibold text-slate-900">{formatMaybeDate(pickFirst(statusData, ['expires_at', 'expiresAt', 'expiration']))}</span></div>
+								</div>
 							</div>
-						</div>
-
-						<div className="mt-4 rounded-2xl border border-slate-200 p-4">
-							<div className="text-xs font-semibold text-slate-700">Signing request details / certificate</div>
-							{(() => {
-								const sr = (details as any)?.signing_request ?? (details as any)?.data?.signing_request ?? (details as any);
-								const requestId = pickFirst(sr, ['id', 'signing_request_id', 'request_id']);
-								const status = pickFirst(sr, ['status', 'state']);
-
-								// Prefer the normalized backend status payload (it has *_at fields),
-								// but fall back to Firma's documented date_* fields from `details`.
-								const createdAt =
-									pickFirst(statusData, ['created_at', 'createdAt', 'created']) ??
-									pickFirst(sr, ['date_created', 'created_at', 'createdAt', 'created']);
-								const completedAt =
-									pickFirst(statusData, ['completed_at', 'completedAt', 'executed_at', 'finished_at']) ??
-									pickFirst(sr, ['date_finished', 'completed_at', 'executed_at', 'finished_at']);
-								const expiresAt =
-									pickFirst(statusData, ['expires_at', 'expiresAt', 'expiration']) ??
-									pickFirst(sr, ['expires_at', 'expiresAt', 'expiration']);
-								const certificateUrl = pickFirst(sr, ['certificate_url', 'certificateUrl', 'audit_trail_url', 'auditTrailUrl']);
-
-								const statusLabel = normalizeFirmaStatusLabel(toDisplayString(status));
-
-								return (
-									<div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-										<div className="rounded-xl border border-slate-200 p-3">
-											<div className="text-[11px] text-slate-500">Signing Request ID</div>
-											<div className="mt-1 text-sm font-semibold text-slate-900 break-all">{requestId ? String(requestId) : '—'}</div>
-										</div>
-										<div className="rounded-xl border border-slate-200 p-3">
-											<div className="text-[11px] text-slate-500">Created</div>
-											<div className="mt-1 text-sm font-semibold text-slate-900">{formatMaybeDate(createdAt)}</div>
-										</div>
-										<div className="rounded-xl border border-slate-200 p-3">
-											<div className="text-[11px] text-slate-500">Completed</div>
-											<div className="mt-1 text-sm font-semibold text-slate-900">{formatMaybeDate(completedAt)}</div>
-										</div>
-										<div className="rounded-xl border border-slate-200 p-3 md:col-span-2 flex items-center justify-between gap-3">
-											<div className="min-w-0">
-												<div className="text-[11px] text-slate-500">Expires</div>
-												<div className="mt-1 text-sm font-semibold text-slate-900">{formatMaybeDate(expiresAt)}</div>
-											</div>
-												{certificateUrl ? (
-													<a
-														href={String(certificateUrl)}
-														target="_blank"
-														rel="noreferrer"
-														className="h-9 px-4 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex-shrink-0"
-													>
-														View certificate
-													</a>
-												) : steps.completed ? (
-													<button
-														type="button"
-														onClick={() => void downloadCertificate()}
-														disabled={downloadingCert}
-														className="h-9 px-4 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 flex-shrink-0"
-													>
-														{downloadingCert ? 'Downloading…' : 'Download certificate'}
-													</button>
-												) : null}
-										</div>
-									</div>
-								);
-							})()}
 						</div>
 					</div>
 				</div>
 
 				<div className="space-y-6">
 					<div className="bg-white rounded-3xl border border-slate-200 p-6">
-						<div className="flex items-center justify-between">
-							<div>
-								<div className="text-sm font-extrabold text-slate-900">Activity</div>
-								<div className="text-xs text-slate-500 mt-1">Signer-level events (audit log) + live SSE.</div>
-							</div>
-							<button
-								type="button"
-								onClick={() => (liveEnabled ? stopLive() : startLive())}
-								className="h-9 px-4 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-							>
-								{liveEnabled ? 'Stop live' : 'Start live'}
-							</button>
-						</div>
-
-						<div className="mt-4 space-y-3 max-h-[60vh] overflow-auto">
-							{Array.isArray(activity) && activity.length > 0 ? (
-								activity.map((row: any) => (
-									<div key={String(row.id || row.created_at || Math.random())} className="rounded-2xl border border-slate-200 p-3">
-										<div className="text-xs text-slate-500">{formatMaybeDate(row.created_at)}</div>
-										<div className="mt-1 flex items-center justify-between gap-2">
-											<div className="text-sm font-semibold text-slate-900 truncate">{String(row.event || 'event')}</div>
-											{row.new_status ? <StatusBadge label={normalizeFirmaStatusLabel(String(row.new_status))} /> : null}
-										</div>
-										{row.signer ? (
-											<div className="mt-1 text-xs text-slate-700 truncate">
-												Signer: <span className="font-semibold">{String(row.signer.name || row.signer.email || '')}</span>
-												{row.signer.email ? <span className="text-slate-500"> · {String(row.signer.email)}</span> : null}
-											</div>
-										) : null}
-										{row.message ? <div className="mt-1 text-xs text-slate-700 break-words">{String(row.message)}</div> : null}
-									</div>
-								))
-							) : events.length > 0 ? (
-								events.map((e, i) => (
-									<div key={`${e.ts}-${i}`} className="rounded-2xl border border-slate-200 p-3">
-										<div className="text-xs text-slate-500">{new Date(e.ts).toLocaleString()}</div>
-										<div className="mt-1 text-sm font-semibold text-slate-900">{e.type}</div>
-										{e.message ? <div className="mt-1 text-xs text-slate-700">{e.message}</div> : null}
-									</div>
-								))
-							) : (
-								<div className="text-sm text-slate-500">No activity yet.</div>
-							)}
-						</div>
+						<div className="text-sm font-extrabold text-slate-900">Notes</div>
+						<div className="mt-2 text-sm text-slate-600">This page tracks signer status and completed downloads.</div>
 					</div>
 				</div>
 			</div>

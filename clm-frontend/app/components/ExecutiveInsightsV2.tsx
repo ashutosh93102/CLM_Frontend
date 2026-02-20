@@ -13,7 +13,6 @@ interface MetricData {
   templates?: { total?: number };
   contracts?: { total?: number };
   approvals?: { total?: number };
-  signing_requests?: { firma?: { total?: number } };
   users?: { total?: number; active?: number };
   activity_summary?: { audit_logs_last_7d?: number };
 }
@@ -33,7 +32,6 @@ export default function ExecutiveInsightsV2({ analytics }: ExecutiveInsightsV2Pr
     const totalContracts = analytics.contracts?.total ?? 0;
     const totalTemplates = analytics.templates?.total ?? 0;
     const totalApprovals = analytics.approvals?.total ?? 0;
-    const totalSigningRequests = analytics.signing_requests?.firma?.total ?? 0;
 
     return [
       {
@@ -62,15 +60,6 @@ export default function ExecutiveInsightsV2({ analytics }: ExecutiveInsightsV2Pr
         subtext: `of ${totalUsers}`,
         color: 'text-blue-600',
         bgColor: 'bg-blue-50',
-      },
-      {
-        label: 'Signing Requests',
-        value: totalSigningRequests,
-        unit: '',
-        icon: 'activity',
-        subtext: 'Firma documents',
-        color: 'text-purple-600',
-        bgColor: 'bg-purple-50',
       },
     ];
   }, [analytics]);

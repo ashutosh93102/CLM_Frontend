@@ -280,9 +280,9 @@ export default function AdminPage() {
               <span className="font-extrabold text-slate-900">{analytics?.contracts?.expiring_next_30d ?? 0}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">Firma avg completion</span>
+            <span className="text-slate-600">Avg completion</span>
               <span className="font-extrabold text-slate-900">
-                {fmtSeconds(analytics?.signing_requests?.firma?.avg_completion_seconds)}
+              —
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">

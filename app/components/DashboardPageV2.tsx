@@ -66,8 +66,6 @@ type DashboardInsights = {
   calendar_upcoming_30d: number;
   calendar_upcoming_365d?: number;
   esign_by_provider_180d: Array<{ provider: string; count: number }>;
-  firma_by_status_180d?: Array<{ status: string; count: number }>;
-  signnow_by_status_180d?: Array<{ status: string; count: number }>;
 };
 
 const DONUT_COLORS = ['#0F141F', '#F43F5E', '#06B6D4', '#A78BFA', '#F59E0B', '#10B981', '#64748B', '#E11D48'];
@@ -406,17 +404,15 @@ const DashboardPageV2: React.FC = () => {
     4
   );
 
-  const esignStatusRows = [
-    ...(insights?.firma_by_status_180d || []),
-    ...(insights?.signnow_by_status_180d || []),
-  ];
-  const esignTotal = esignStatusRows.reduce((acc, r) => acc + (r.count || 0), 0);
-  const esignCompleted = esignStatusRows.reduce((acc, r) => {
-    const st = String(r.status || '').toLowerCase();
-    return acc + (st === 'completed' ? r.count : 0);
+  const esignProviderRows = Array.isArray(insights?.esign_by_provider_180d) ? insights?.esign_by_provider_180d : [];
+  const esignTotal = esignProviderRows.reduce((acc, r) => acc + (r.count || 0), 0);
+  const inhouseCount = esignProviderRows.reduce((acc, r) => {
+    const provider = String(r.provider || '').toLowerCase();
+    const isInhouse = provider.includes('inhouse') || provider.includes('in-house') || provider.includes('in_house');
+    return acc + (isInhouse ? (r.count || 0) : 0);
   }, 0);
-  const esignWaiting = Math.max(0, esignTotal - esignCompleted);
-  const completionRate = esignTotal > 0 ? Math.round((esignCompleted / esignTotal) * 100) : 0;
+  const otherCount = Math.max(0, esignTotal - inhouseCount);
+  const inhouseShare = esignTotal > 0 ? Math.round((inhouseCount / esignTotal) * 100) : 0;
 
   const upcomingEventsKpi =
     typeof insights?.calendar_upcoming_365d === 'number'
@@ -622,13 +618,13 @@ const DashboardPageV2: React.FC = () => {
             <div className="mt-5">
               <div className="flex items-baseline justify-between">
                 <div>
-                  <p className="text-xs font-bold text-slate-400">Completion Rate</p>
-                  <p className="text-3xl font-extrabold text-slate-900 mt-1">{completionRate}%</p>
+                  <p className="text-xs font-bold text-slate-400">In-house share</p>
+                  <p className="text-3xl font-extrabold text-slate-900 mt-1">{inhouseShare}%</p>
                 </div>
               </div>
 
               <div className="mt-4 h-2 rounded-full bg-slate-100 overflow-hidden">
-                <div className="h-full bg-rose-400" style={{ width: `${completionRate}%` }} />
+                <div className="h-full bg-rose-400" style={{ width: `${inhouseShare}%` }} />
               </div>
 
               <div className="mt-5 space-y-3">
@@ -636,8 +632,8 @@ const DashboardPageV2: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <span className="w-7 h-7 rounded-full border border-emerald-200 bg-emerald-50 inline-flex items-center justify-center text-emerald-700 font-extrabold">✓</span>
                     <div>
-                      <div className="text-sm font-extrabold text-slate-900">Completed</div>
-                      <div className="text-xs text-slate-500">{esignCompleted} contracts</div>
+                      <div className="text-sm font-extrabold text-slate-900">In-house</div>
+                      <div className="text-xs text-slate-500">{inhouseCount} contracts</div>
                     </div>
                   </div>
                 </div>
@@ -646,8 +642,8 @@ const DashboardPageV2: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <span className="w-7 h-7 rounded-full border border-amber-200 bg-amber-50 inline-flex items-center justify-center text-amber-700 font-extrabold">8</span>
                     <div>
-                      <div className="text-sm font-extrabold text-slate-900">Waiting</div>
-                      <div className="text-xs text-slate-500">{esignWaiting} contracts</div>
+                      <div className="text-sm font-extrabold text-slate-900">Other</div>
+                      <div className="text-xs text-slate-500">{otherCount} contracts</div>
                     </div>
                   </div>
                 </div>

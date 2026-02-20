@@ -135,8 +135,8 @@ export default function GovernanceDashboardAdminV2({ analytics, userRegistration
         label: String(r.label || ''),
         contracts: r.contracts_created ?? 0,
         templates: r.templates_created ?? 0,
-        signing: r.firma_sent ?? 0,
-        completed: r.firma_completed ?? 0,
+        signing: r.signing_sent ?? r.esign_sent ?? 0,
+        completed: r.signing_completed ?? r.esign_completed ?? 0,
         audit: r.audit_logs ?? 0,
       }));
       return daily;
@@ -151,8 +151,8 @@ export default function GovernanceDashboardAdminV2({ analytics, userRegistration
         label: r.label || monthLabelFromISO(monthStart),
         contracts: r.contracts_created ?? 0,
         templates: r.templates_created ?? 0,
-        signing: r.firma_sent ?? 0,
-        completed: r.firma_completed ?? 0,
+        signing: r.signing_sent ?? r.esign_sent ?? 0,
+        completed: r.signing_completed ?? r.esign_completed ?? 0,
         audit: 0,
       };
     });

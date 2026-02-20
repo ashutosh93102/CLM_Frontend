@@ -2,10 +2,10 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { ApiClient } from '@/app/lib/api-client';
-import { API_BASE_URL } from '@/app/lib/env';
-import SignatureModal from '@/app/components/SignatureModal';
-import SignatureFieldPlacer, { type SignatureFieldPlacement } from '@/app/components/SignatureFieldPlacer';
+import { ApiClient } from '../../lib/api-client';
+import { API_BASE_URL } from '../../lib/env';
+import SignatureModal from '../../components/SignatureModal';
+import SignatureFieldPlacer, { type SignatureFieldPlacement } from '../../components/SignatureFieldPlacer';
 
 function getOrCreateDeviceId(): string {
   if (typeof window === 'undefined') return '';

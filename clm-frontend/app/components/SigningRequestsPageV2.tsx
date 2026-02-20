@@ -1,298 +1,335 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
-import DashboardLayout from './DashboardLayout';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ApiClient, FirmaSigningRequestListItem } from '@/app/lib/api-client';
-import { CheckSquare, Search, Send, ArrowRight, Trash2 } from 'lucide-react';
+import { Download, FileSignature, Search } from 'lucide-react';
 
-type StatusFilter = 'all' | 'draft' | 'sent' | 'completed' | 'declined' | 'failed';
+import DashboardLayout from './DashboardLayout';
+import { ApiClient, InhouseSigningRequestListItem } from '../lib/api-client';
+
+type StatusFilter = 'all' | 'draft' | 'sent' | 'in_progress' | 'completed' | 'declined' | 'failed';
+
+function formatMaybeDate(value: any): string {
+	if (!value) return '—';
+	const d = new Date(String(value));
+	if (Number.isNaN(d.getTime())) return String(value);
+	return d.toLocaleString();
+}
+
+function statusBadgeClass(status: string): string {
+	const raw = String(status || '').trim().toLowerCase();
+	if (['completed', 'signed', 'executed', 'done', 'finished'].includes(raw)) {
+		return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+	}
+	if (['declined', 'rejected', 'canceled', 'cancelled', 'refused', 'failed', 'error'].includes(raw)) {
+		return 'bg-rose-50 text-rose-700 border-rose-200';
+	}
+	if (['sent', 'invited', 'pending', 'in_progress', 'in progress', 'viewed', 'draft'].includes(raw)) {
+		return 'bg-amber-50 text-amber-800 border-amber-200';
+	}
+	return 'bg-slate-50 text-slate-700 border-slate-200';
+}
+
+function safeFilenameBase(title: string): string {
+	const raw = String(title || 'contract').trim() || 'contract';
+	return raw.replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 80);
+}
+
+async function downloadBlob(blob: Blob, filename: string) {
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement('a');
+	a.href = url;
+	a.download = filename;
+	document.body.appendChild(a);
+	a.click();
+	a.remove();
+	URL.revokeObjectURL(url);
+}
 
 const SigningRequestsPageV2: React.FC = () => {
-  const [items, setItems] = useState<FirmaSigningRequestListItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [filterStatus, setFilterStatus] = useState<StatusFilter>('all');
-  const [search, setSearch] = useState('');
-  const [refreshingId, setRefreshingId] = useState<string | null>(null);
-  const [resendingId, setResendingId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null);
+	const router = useRouter();
+	const [rows, setRows] = useState<InhouseSigningRequestListItem[]>([]);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+	const [filterStatus, setFilterStatus] = useState<StatusFilter>('all');
+	const [search, setSearch] = useState('');
+	const [downloadingFor, setDownloadingFor] = useState<string | null>(null);
 
-  const router = useRouter();
+	const lastRefreshAtRef = useRef<number>(0);
 
-  const fetchList = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const client = new ApiClient();
-      const res = await client.firmaListSigningRequests({ limit: 200, status: filterStatus === 'all' ? undefined : filterStatus });
-      if (!res.success) {
-        setError(res.error || 'Failed to load signing requests');
-        setItems([]);
-        return;
-      }
-      const results = (res.data as any)?.results;
-      setItems(Array.isArray(results) ? results : []);
-      setLastRefreshAt(new Date());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load signing requests');
-    } finally {
-      setLoading(false);
-    }
-  };
+	const fetchRequests = async (params?: { q?: string; status?: StatusFilter }) => {
+		try {
+			setLoading(true);
+			setError(null);
+			lastRefreshAtRef.current = Date.now();
 
-  useEffect(() => {
-    fetchList();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterStatus]);
+			const client = new ApiClient();
+			const res = await client.inhouseListSigningRequests({
+				q: params?.q,
+				status: params?.status && params.status !== 'all' ? params.status : undefined,
+				limit: 200,
+				offset: 0,
+			});
 
-  const formatTime = (iso?: string | null) => {
-    if (!iso) return '—';
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return '—';
-    return d.toLocaleString();
-  };
+			if (!res.success) {
+				setError(res.error || 'Failed to fetch signing requests');
+				setRows([]);
+				return;
+			}
 
-  const statusPill = (status: string) => {
-    const s = String(status || '').toLowerCase();
-    const map: Record<string, string> = {
-      completed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      sent: 'bg-amber-50 text-amber-700 border-amber-200',
-      in_progress: 'bg-sky-50 text-sky-700 border-sky-200',
-      draft: 'bg-slate-50 text-slate-700 border-slate-200',
-      declined: 'bg-rose-50 text-rose-700 border-rose-200',
-      failed: 'bg-rose-50 text-rose-700 border-rose-200',
-    };
-    return map[s] || 'bg-slate-50 text-slate-700 border-slate-200';
-  };
+			const results = Array.isArray(res.data?.results) ? res.data!.results : [];
+			setRows(results);
+		} catch (e) {
+			setError(e instanceof Error ? e.message : 'Failed to fetch signing requests');
+			setRows([]);
+		} finally {
+			setLoading(false);
+		}
+	};
 
-  const visible = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const base = items;
-    if (!q) return base;
-    return base.filter((it) => {
-      const title = String(it.contract_title || '').toLowerCase();
-      const cid = String(it.contract_id || '').toLowerCase();
-      const did = String(it.firma_document_id || '').toLowerCase();
-      return title.includes(q) || cid.includes(q) || did.includes(q);
-    });
-  }, [items, search]);
+	useEffect(() => {
+		fetchRequests();
+		const onFocus = () => fetchRequests({ q: search.trim() || undefined, status: filterStatus });
+		window.addEventListener('focus', onFocus);
+		return () => window.removeEventListener('focus', onFocus);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
-  const stats = useMemo(() => {
-    const total = items.length;
-    const completed = items.filter((i) => String(i.status).toLowerCase() === 'completed').length;
-    const pending = items.filter((i) => ['sent', 'in_progress', 'draft'].includes(String(i.status).toLowerCase())).length;
-    const failed = items.filter((i) => ['declined', 'failed'].includes(String(i.status).toLowerCase())).length;
-    return { total, completed, pending, failed };
-  }, [items]);
+	useEffect(() => {
+		const q = search.trim();
+		const handle = window.setTimeout(() => {
+			fetchRequests({ q: q || undefined, status: filterStatus });
+		}, 250);
+		return () => window.clearTimeout(handle);
+	}, [search, filterStatus]);
 
-  const refreshOne = async (contractId: string, rowId: string) => {
-    try {
-      setRefreshingId(rowId);
-      const client = new ApiClient();
-      await client.firmaStatus(contractId);
-      await fetchList();
-    } finally {
-      setRefreshingId(null);
-    }
-  };
+	const stats = useMemo(() => {
+		const by = (s: string) => rows.filter((r) => String(r.status || '').toLowerCase() === s).length;
+		const sent = by('sent');
+		const inProgress = by('in_progress') + by('in progress');
+		const completed = by('completed');
+		const declined = by('declined');
+		const failed = by('failed');
+		const draft = by('draft');
+		const active = sent + inProgress;
+		return {
+			total: rows.length,
+			draft,
+			active,
+			completed,
+			declined: declined + failed,
+		};
+	}, [rows]);
 
-  const resendOne = async (contractId: string, rowId: string) => {
-    try {
-      setResendingId(rowId);
-      const client = new ApiClient();
-      const res = await client.firmaResendInvites(contractId);
-      if (!res.success) {
-        setError(res.error || 'Failed to resend');
-      }
-      await fetchList();
-    } finally {
-      setResendingId(null);
-    }
-  };
+	const openSigningStatus = (contractId: string) => {
+		router.push(`/contracts/signing-status?id=${encodeURIComponent(contractId)}&provider=inhouse`);
+	};
 
-  const deleteOne = async (rowId: string, contractTitle?: string | null) => {
-    const title = String(contractTitle || 'this signing request');
-    const ok = window.confirm(`Delete "${title}" signing request from CLM? This does not delete the contract.`);
-    if (!ok) return;
+	const downloadExecuted = async (row: InhouseSigningRequestListItem) => {
+		const contractId = String(row.contract_id || '').trim();
+		if (!contractId) return;
+		try {
+			setDownloadingFor(contractId);
+			setError(null);
+			const client = new ApiClient();
+			const res = await client.inhouseDownloadExecutedPdf(contractId);
+			if (!res.success || !res.data) {
+				setError(res.error || 'Failed to download executed PDF');
+				return;
+			}
+			const base = safeFilenameBase(row.contract_title || 'contract');
+			await downloadBlob(res.data, `${base}_signed.pdf`);
+		} catch (e) {
+			setError(e instanceof Error ? e.message : 'Failed to download executed PDF');
+		} finally {
+			setDownloadingFor(null);
+		}
+	};
 
-    try {
-      setDeletingId(rowId);
-      setError(null);
-      const client = new ApiClient();
-      const res = await client.firmaDeleteSigningRequest(rowId);
-      if (!res.success) {
-        setError(res.error || 'Failed to delete signing request');
-        return;
-      }
-      await fetchList();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to delete signing request');
-    } finally {
-      setDeletingId(null);
-    }
-  };
+	const downloadCertificate = async (row: InhouseSigningRequestListItem) => {
+		const contractId = String(row.contract_id || '').trim();
+		if (!contractId) return;
+		try {
+			setDownloadingFor(contractId);
+			setError(null);
+			const client = new ApiClient();
+			const res = await client.inhouseDownloadCertificate(contractId);
+			if (!res.success || !res.data) {
+				setError(res.error || 'Failed to download certificate');
+				return;
+			}
+			const base = safeFilenameBase(row.contract_title || 'contract');
+			await downloadBlob(res.data, `${base}_certificate.pdf`);
+		} catch (e) {
+			setError(e instanceof Error ? e.message : 'Failed to download certificate');
+		} finally {
+			setDownloadingFor(null);
+		}
+	};
 
-  return (
-    <DashboardLayout>
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div className="min-w-0">
-          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 flex items-center gap-3">
-            <span>Signing Requests</span>
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-semibold bg-white text-slate-700 border-slate-200">
-              <CheckSquare className="w-4 h-4" />
-              {stats.total} total
-            </span>
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            {lastRefreshAt ? `Last update: ${lastRefreshAt.toLocaleString()}` : '—'}
-          </p>
-        </div>
+	const visibleRows = rows;
 
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
-          <div className="relative w-full sm:w-auto">
-            <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search signing requests…"
-              className="w-full sm:w-[320px] bg-white border border-slate-200 rounded-full pl-11 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-200"
-            />
-          </div>
-          <button
-            onClick={fetchList}
-            className="inline-flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-800 px-5 py-3 text-sm font-semibold hover:bg-slate-50 w-full sm:w-auto"
-          >
-            Refresh
-          </button>
-        </div>
-      </div>
+	return (
+		<DashboardLayout>
+			<div className="flex items-center justify-between gap-4 mb-6">
+				<div className="min-w-0">
+					<h1 className="text-2xl md:text-3xl font-extrabold text-slate-900">Signing Requests</h1>
+					<p className="mt-2 text-sm text-slate-600">
+						Default provider: <span className="font-semibold">In-house signing</span>
+					</p>
+				</div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        {[{ label: 'Total', value: stats.total }, { label: 'Pending', value: stats.pending }, { label: 'Completed', value: stats.completed }, { label: 'Failed', value: stats.failed }].map((s) => (
-          <div key={s.label} className="rounded-3xl bg-white border border-slate-200 p-4 sm:p-6">
-            <p className="text-slate-500 text-sm">{s.label}</p>
-            <p className="text-4xl font-extrabold text-slate-900 mt-2">{String(s.value).padStart(2, '0')}</p>
-          </div>
-        ))}
-      </div>
+				<div className="flex items-center gap-3">
+					<div className="relative hidden sm:block">
+						<Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+						<input
+							value={search}
+							onChange={(e) => setSearch(e.target.value)}
+							placeholder="Search by contract or signer…"
+							className="w-[340px] bg-white border border-slate-200 rounded-full pl-11 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-200"
+						/>
+					</div>
+					<button
+						onClick={() => router.push('/contracts')}
+						className="inline-flex items-center gap-2 rounded-full bg-[#0F141F] text-white px-5 py-3 text-sm font-semibold"
+					>
+						<FileSignature className="w-4 h-4" />
+						Go to Contracts
+					</button>
+				</div>
+			</div>
 
-      {/* Filters + List */}
-      <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden">
-        <div className="px-4 sm:px-6 py-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <p className="text-lg font-extrabold text-slate-900">All Signing Requests</p>
-            <p className="text-sm text-slate-500 mt-1">{visible.length} request{visible.length !== 1 ? 's' : ''}</p>
-          </div>
+			<div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+				{[
+					{ label: 'Total', value: stats.total },
+					{ label: 'Draft', value: stats.draft },
+					{ label: 'Active', value: stats.active },
+					{ label: 'Completed', value: stats.completed },
+				].map((s) => (
+					<div key={s.label} className="rounded-3xl bg-white border border-slate-200 p-6">
+						<p className="text-slate-500 text-sm">{s.label}</p>
+						<p className="text-4xl font-extrabold text-slate-900 mt-2">{String(s.value).padStart(2, '0')}</p>
+					</div>
+				))}
+			</div>
 
-          <div className="flex gap-2 overflow-x-auto sm:flex-wrap">
-            {(['all', 'draft', 'sent', 'completed', 'declined', 'failed'] as StatusFilter[]).map((s) => (
-              <button
-                key={s}
-                onClick={() => setFilterStatus(s)}
-                className={`px-3 py-2 rounded-xl text-xs font-semibold border transition ${
-                  filterStatus === s
-                    ? 'bg-[#0F141F] text-white border-[#0F141F]'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                {s === 'all' ? 'All' : s.replace('_', ' ').replace(/\b\w/g, (m) => m.toUpperCase())}
-              </button>
-            ))}
-          </div>
-        </div>
+			<div className="bg-white rounded-3xl border border-slate-200 overflow-hidden">
+				<div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between flex-wrap gap-3">
+					<div>
+						<p className="text-lg font-extrabold text-slate-900">All Signing Requests</p>
+						<p className="text-sm text-slate-500 mt-1">{visibleRows.length} request{visibleRows.length !== 1 ? 's' : ''}</p>
+					</div>
 
-        <div className="divide-y divide-slate-200">
-          {loading ? (
-            <div className="py-16 text-center text-slate-500">Loading signing requests…</div>
-          ) : error ? (
-            <div className="py-16 text-center text-rose-600">{error}</div>
-          ) : visible.length === 0 ? (
-            <div className="py-16 text-center text-slate-500">No signing requests found</div>
-          ) : (
-            visible.map((it) => {
-              const p = it.progress || { total_signers: 0, signed: 0, remaining: 0 };
-              const pct = p.total_signers > 0 ? Math.round((p.signed / p.total_signers) * 100) : 0;
-              return (
-                <div key={it.id} className="px-6 py-5 hover:bg-slate-50 transition">
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="font-semibold text-slate-900 truncate">{it.contract_title}</p>
-                      <div className="flex flex-wrap items-center gap-3 mt-1">
-                        <p className="text-xs text-slate-500 truncate">Contract: {it.contract_id}</p>
-                        <span className="text-slate-300">•</span>
-                        <p className="text-xs text-slate-500 truncate">Request ID: {it.firma_document_id}</p>
-                      </div>
+					<div className="flex gap-2 flex-wrap">
+						{(['all', 'draft', 'sent', 'in_progress', 'completed', 'declined', 'failed'] as StatusFilter[]).map((s) => (
+							<button
+								key={s}
+								onClick={() => setFilterStatus(s)}
+								className={`px-3 py-2 rounded-xl text-xs font-semibold border transition ${
+									filterStatus === s
+										? 'bg-[#0F141F] text-white border-[#0F141F]'
+										: 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+								}`}
+							>
+								{s === 'all'
+									? 'All'
+									: s === 'in_progress'
+										? 'In Progress'
+										: s.charAt(0).toUpperCase() + s.slice(1)}
+							</button>
+						))}
+					</div>
+				</div>
 
-                      <div className="mt-4 w-full">
-                        <div className="flex items-center text-xs text-slate-600">
-                          <span>Progress</span>
-                        </div>
-                        <div className="mt-2 h-2 rounded-full bg-slate-100 overflow-hidden">
-                          <div className="h-full bg-[#FF5C7A]" style={{ width: `${pct}%` }} />
-                        </div>
-                      </div>
+				<div className="divide-y divide-slate-200">
+					{loading ? (
+						<div className="py-16 text-center text-slate-500">Loading signing requests…</div>
+					) : error ? (
+						<div className="py-16 text-center text-rose-600">{error}</div>
+					) : visibleRows.length === 0 ? (
+						<div className="py-16 text-center text-slate-500">No signing requests found</div>
+					) : (
+						visibleRows.map((row) => {
+							const contractId = String(row.contract_id || '').trim();
+							const signers = Array.isArray(row.signers) ? row.signers : [];
+							const signedCount = signers.filter((s) => Boolean(s?.has_signed) || String(s?.status || '').toLowerCase() === 'signed').length;
+							const canDownload = String(row.status || '').toLowerCase() === 'completed';
+							const disabled = downloadingFor === contractId;
 
-                      <div className="flex flex-wrap gap-6 mt-4 text-xs text-slate-500">
-                        <span>Last update: {formatTime(it.last_updated || it.last_checked)}</span>
-                        <span>Status checked: {formatTime(it.last_checked)}</span>
-                        <span>Expires: {formatTime(it.expires_at)}</span>
-                      </div>
-                    </div>
+							return (
+								<div
+									key={row.id}
+									role="button"
+									tabIndex={0}
+									onClick={() => openSigningStatus(contractId)}
+									onKeyDown={(e) => {
+										if (e.key === 'Enter' || e.key === ' ') {
+											e.preventDefault();
+											openSigningStatus(contractId);
+										}
+									}}
+									className="w-full text-left px-6 py-5 hover:bg-slate-50 transition cursor-pointer"
+								>
+									<div className="flex items-center justify-between gap-4">
+										<div className="min-w-0">
+											<p className="font-semibold text-slate-900 truncate">{row.contract_title || 'Contract'}</p>
+											<p className="text-xs text-slate-500 mt-1 truncate">
+												{contractId} • {signedCount}/{signers.length} signed
+											</p>
+											<p className="text-xs text-slate-500 mt-1 truncate">
+												Sent: {formatMaybeDate(row.sent_at)} • Updated: {formatMaybeDate(row.updated_at || row.last_activity_at)}
+											</p>
+										</div>
 
-                    <div className="flex flex-col sm:items-end gap-3">
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border ${statusPill(String(it.status))}`}>
-                        {String(it.status).replace('_', ' ').toUpperCase()}
-                      </span>
+										<div className="flex items-center gap-3 shrink-0">
+											<span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border ${statusBadgeClass(row.status)}`}>
+												{String(row.status || '—').toUpperCase()}
+											</span>
 
-                      <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end">
-                        <button
-                          onClick={() => refreshOne(it.contract_id, it.id)}
-                          disabled={refreshingId === it.id}
-                          className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 text-slate-800 px-4 py-2 text-xs font-semibold hover:bg-slate-50 disabled:opacity-50"
-                        >
-                          {refreshingId === it.id ? 'Refreshing…' : 'Refresh'}
-                        </button>
+											{canDownload ? (
+												<>
+													<button
+														type="button"
+														onClick={(e) => {
+															e.preventDefault();
+															e.stopPropagation();
+															downloadExecuted(row);
+														}}
+														disabled={disabled}
+														className="inline-flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-800 w-9 h-9 hover:bg-slate-50 disabled:opacity-50"
+														aria-label="Download executed PDF"
+														title="Download executed PDF"
+													>
+														<Download className="w-4 h-4" />
+													</button>
+													<button
+														type="button"
+														onClick={(e) => {
+															e.preventDefault();
+															e.stopPropagation();
+															downloadCertificate(row);
+														}}
+														disabled={disabled}
+														className="inline-flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-800 w-9 h-9 hover:bg-slate-50 disabled:opacity-50"
+														aria-label="Download certificate"
+														title="Download certificate"
+													>
+														<span className="text-xs font-extrabold">C</span>
+													</button>
+												</>
+											) : null}
 
-                        <button
-                          onClick={() => resendOne(it.contract_id, it.id)}
-                          disabled={resendingId === it.id}
-                          className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 text-slate-800 px-4 py-2 text-xs font-semibold hover:bg-slate-50 disabled:opacity-50"
-                        >
-                          <Send className="w-4 h-4" />
-                          {resendingId === it.id ? 'Resending…' : 'Resend'}
-                        </button>
-
-                        <button
-                          onClick={() => deleteOne(it.id, it.contract_title)}
-                          disabled={deletingId === it.id}
-                          className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 text-rose-700 px-4 py-2 text-xs font-semibold hover:bg-rose-50 disabled:opacity-50"
-                          title="Delete signing request"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          {deletingId === it.id ? 'Deleting…' : 'Delete'}
-                        </button>
-
-                        <button
-                          onClick={() => router.push(`/contracts/signing-status?id=${encodeURIComponent(it.contract_id)}`)}
-                          className="inline-flex items-center gap-2 rounded-full bg-[#0F141F] text-white px-4 py-2 text-xs font-semibold"
-                        >
-                          Open <ArrowRight className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-    </DashboardLayout>
-  );
+											<span className="text-sm font-semibold text-slate-700">View →</span>
+										</div>
+									</div>
+								</div>
+							);
+						})
+					)}
+				</div>
+			</div>
+		</DashboardLayout>
+	);
 };
 
 export default SigningRequestsPageV2;
