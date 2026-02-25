@@ -1,0 +1,21 @@
+# Root ignores for this repo
+
+# Next.js build output (this repo has a top-level .next created by builds)
+.next/
+
+# Node
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# OS
+.DS_Store
+
+# Env (keep examples tracked)
+.env*
+!.env.example
+!.env.local.example
