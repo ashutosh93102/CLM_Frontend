@@ -142,22 +142,22 @@ const SidebarV2: React.FC<SidebarV2Props> = ({ mobileOpen = false, onMobileOpenC
 
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 h-screen bg-[#0F141F] z-50 transition-all duration-300 flex flex-col ${
-          expanded ? 'w-64' : 'w-[88px]'
+        className={`fixed left-0 top-0 h-screen bg-slate-900 border-r border-slate-800 z-50 transition-all duration-300 flex flex-col ${
+          expanded ? 'w-64' : 'w-[72px]'
         } ${isMobile && !expanded ? '-translate-x-full' : 'translate-x-0'}`}
         onMouseEnter={() => !isMobile && setIsExpanded(true)}
         onMouseLeave={() => !isMobile && setIsExpanded(false)}
       >
         {/* Logo Section */}
-        <div className="flex items-center h-20 px-6">
+        <div className="flex items-center h-[64px] px-4 border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#FF5C7A] rounded-xl flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
               <span className="text-white font-bold text-lg">C</span>
             </div>
             {expanded && (
               <div className="flex flex-col">
                 <span className="text-white font-bold text-base whitespace-nowrap">ContractFlow</span>
-                <span className="text-white/50 text-xs whitespace-nowrap">Workspace</span>
+                <span className="text-slate-400 text-xs whitespace-nowrap">Workspace</span>
               </div>
             )}
           </div>
@@ -166,7 +166,7 @@ const SidebarV2: React.FC<SidebarV2Props> = ({ mobileOpen = false, onMobileOpenC
           {isMobile && (
             <button
               onClick={() => onMobileOpenChange?.(false)}
-              className="ml-auto p-2 rounded-lg hover:bg-white/10 text-white/70"
+              className="ml-auto p-2 rounded-lg hover:bg-slate-800 text-slate-400"
               aria-label="Close sidebar"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -177,26 +177,26 @@ const SidebarV2: React.FC<SidebarV2Props> = ({ mobileOpen = false, onMobileOpenC
         </div>
 
         {/* Navigation Items */}
-        <nav className="flex-1 overflow-y-auto py-2 px-4 space-y-2">
+        <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-1">
           {navItems.map((item) => {
             const active = isActive(item);
             return (
               <Link key={item.href} href={item.href}>
                 <div
-                  className={`relative flex items-center gap-3 rounded-2xl transition-all duration-200 cursor-pointer ${
-                    expanded ? 'px-4 py-3' : 'px-0 py-3 justify-center'
+                  className={`relative flex items-center gap-3 rounded-xl transition-all duration-200 cursor-pointer ${
+                    expanded ? 'px-3 py-2.5' : 'py-2.5 justify-center'
                   } ${
                     active
-                      ? 'text-white bg-white/10'
-                      : 'text-white/55 hover:text-white/90 hover:bg-white/5'
+                      ? 'text-white bg-blue-600'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
                   }`}
                 >
                   {active && (
-                    <div className="absolute -left-4 top-1/2 -translate-y-1/2 w-1 h-8 bg-[#FF5C7A] rounded-r-full" />
+                    <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-blue-400 rounded-r-full" />
                   )}
 
                   <div className="flex-shrink-0">{item.icon}</div>
-                  {expanded && <span className="font-medium text-sm whitespace-nowrap">{item.name}</span>}
+                  {expanded && <span className="font-medium text-sm whitespace-nowrap tracking-tight">{item.name}</span>}
                 </div>
               </Link>
             );
@@ -204,11 +204,11 @@ const SidebarV2: React.FC<SidebarV2Props> = ({ mobileOpen = false, onMobileOpenC
         </nav>
 
         {/* User Profile & Logout */}
-        <div className="mt-auto px-4 pb-6">
+        <div className="mt-auto px-3 pb-5 border-t border-slate-800 pt-3">
           <div
             className={`${
               expanded
-                ? 'flex items-center gap-3 px-2 py-3 rounded-2xl hover:bg-white/5'
+                ? 'flex items-center gap-3 px-2 py-3 rounded-2xl hover:bg-slate-800'
                 : 'flex justify-center py-3'
             } transition`}
           >
@@ -218,25 +218,25 @@ const SidebarV2: React.FC<SidebarV2Props> = ({ mobileOpen = false, onMobileOpenC
                 if (isMobile) onMobileOpenChange?.(false);
                 router.push('/settings');
               }}
-              className={`${expanded ? 'flex items-center gap-3 flex-1 min-w-0' : 'flex items-center'} rounded-2xl hover:bg-white/5 transition px-2 py-1.5`}
+              className={`${expanded ? 'flex items-center gap-3 flex-1 min-w-0' : 'flex items-center'} rounded-2xl hover:bg-slate-800 transition px-2 py-1.5`}
               aria-label="Open profile"
               title="Profile"
             >
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FF5C7A] to-[#8B5CF6] flex items-center justify-center text-white font-semibold flex-shrink-0 ring-1 ring-white/10">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center text-white font-semibold flex-shrink-0 ring-2 ring-blue-100 shadow-sm">
                 {(user?.email?.[0] || 'U').toUpperCase()}
               </div>
               {expanded && (
                 <div className="flex-1 min-w-0 text-left">
                   <p className="text-white text-sm font-medium truncate">{user?.email || 'User'}</p>
-                  <p className="text-white/45 text-xs truncate">{(user as any)?.is_admin ? 'Admin' : 'User'}</p>
+                  <p className="text-slate-400 text-xs truncate">{(user as any)?.is_admin ? 'Admin' : 'User'}</p>
                 </div>
               )}
-              {expanded && <ChevronRight className="w-4 h-4 text-white/40 flex-shrink-0" />}
+              {expanded && <ChevronRight className="w-4 h-4 text-slate-600 flex-shrink-0" />}
             </button>
             {expanded && (
               <button
                 onClick={handleLogout}
-                className="p-2 rounded-lg hover:bg-white/10 text-white/60 hover:text-white"
+                className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white"
                 aria-label="Logout"
                 title="Logout"
               >
@@ -246,7 +246,7 @@ const SidebarV2: React.FC<SidebarV2Props> = ({ mobileOpen = false, onMobileOpenC
             {!expanded && (
               <button
                 onClick={handleLogout}
-                className="p-2 rounded-2xl hover:bg-white/10 text-white/60 hover:text-white"
+                className="p-2 rounded-2xl hover:bg-slate-800 text-slate-400 hover:text-white"
                 aria-label="Logout"
                 title="Logout"
               >
@@ -260,7 +260,7 @@ const SidebarV2: React.FC<SidebarV2Props> = ({ mobileOpen = false, onMobileOpenC
       {/* Spacer for non-mobile, overlap handler for mobile */}
       <div
         className={`hidden md:block transition-all duration-300 ${
-          isExpanded ? 'w-64' : 'w-[88px]'
+          isExpanded ? 'w-64' : 'w-[72px]'
         }`}
       />
     </>

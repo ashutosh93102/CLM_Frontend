@@ -124,12 +124,12 @@ function StatusBadge(props: { label: string }) {
 	const isSigned = ['signed', 'completed', 'executed', 'done'].includes(lower);
 	const isPending = ['sent', 'invited', 'pending', 'in_progress', 'in progress', 'viewed'].includes(lower);
 	const badgeClass = isDeclined
-		? 'bg-rose-50 text-rose-700 border-rose-200'
+		? 'bg-gray-900 text-white border-gray-800'
 		: isSigned
-			? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+			? 'bg-blue-600 text-white border-blue-500'
 			: isPending
-				? 'bg-amber-50 text-amber-800 border-amber-200'
-				: 'bg-slate-50 text-slate-700 border-slate-200';
+				? 'bg-blue-50 text-blue-700 border-blue-200'
+				: 'bg-gray-100 text-gray-600 border-gray-200';
 	return <span className={`px-2 py-1 rounded-full border text-[11px] font-semibold ${badgeClass}`}>{raw || '—'}</span>;
 }
 
@@ -156,12 +156,12 @@ function colorForString(input: string): { bg: string; fg: string } {
 	let hash = 0;
 	for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) | 0;
 	const palette = [
-		{ bg: 'bg-indigo-100', fg: 'text-indigo-700' },
-		{ bg: 'bg-violet-100', fg: 'text-violet-700' },
-		{ bg: 'bg-sky-100', fg: 'text-sky-700' },
-		{ bg: 'bg-emerald-100', fg: 'text-emerald-700' },
-		{ bg: 'bg-amber-100', fg: 'text-amber-800' },
-		{ bg: 'bg-rose-100', fg: 'text-rose-700' },
+		{ bg: 'bg-blue-100', fg: 'text-blue-700' },
+		{ bg: 'bg-slate-100', fg: 'text-slate-700' },
+		{ bg: 'bg-blue-200', fg: 'text-blue-800' },
+		{ bg: 'bg-gray-200', fg: 'text-gray-800' },
+		{ bg: 'bg-blue-50', fg: 'text-blue-600' },
+		{ bg: 'bg-gray-100', fg: 'text-gray-700' },
 	];
 	const idx = Math.abs(hash) % palette.length;
 	return palette[idx];
@@ -181,9 +181,9 @@ function StatusIcon(props: { status: string }) {
 	const raw = String(props.status || '').trim().toLowerCase();
 	const isDeclined = ['declined', 'rejected', 'canceled', 'cancelled', 'refused', 'failed', 'error'].includes(raw);
 	const isSigned = ['signed', 'completed', 'executed', 'done', 'finished'].includes(raw);
-	if (isSigned) return <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden="true" />;
-	if (isDeclined) return <XCircle className="h-4 w-4 text-rose-600" aria-hidden="true" />;
-	return <Clock3 className="h-4 w-4 text-amber-600" aria-hidden="true" />;
+	if (isSigned) return <CheckCircle2 className="h-4 w-4 text-blue-600" aria-hidden="true" />;
+	if (isDeclined) return <XCircle className="h-4 w-4 text-red-600" aria-hidden="true" />;
+	return <Clock3 className="h-4 w-4 text-gray-400" aria-hidden="true" />;
 }
 
 function normalizeStatusLabel(value: any): string {
@@ -236,8 +236,8 @@ function computeSteps(statusData: any): Record<StepKey, boolean> {
 function StepPill(props: { title: string; active: boolean; subtitle?: string }) {
 	return (
 		<div className="flex items-center gap-3">
-			<div className={`h-10 w-10 rounded-full flex items-center justify-center border ${props.active ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-200'}`}>
-				<div className={`h-3 w-3 rounded-full ${props.active ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+		<div className={`h-10 w-10 rounded-full flex items-center justify-center border ${props.active ? 'bg-blue-50 border-blue-200' : 'bg-white border-slate-200'}`}>
+			<div className={`h-3 w-3 rounded-full ${props.active ? 'bg-blue-500' : 'bg-slate-300'}`} />
 			</div>
 			<div>
 				<div className="text-sm font-semibold text-slate-900">{props.title}</div>
@@ -268,14 +268,14 @@ function TrackingStepper(props: {
 			<div className="relative">
 				<div className="absolute left-6 right-6 top-5 h-[2px] bg-slate-200" />
 				<div
-					className="absolute left-6 top-5 h-[2px] bg-emerald-400"
+					className="absolute left-6 top-5 h-[2px] bg-blue-500"
 					style={{ width: `calc(${(activeIdx / (items.length - 1)) * 100}% - 0px)` }}
 				/>
 				<div className="grid grid-cols-4 gap-3">
 					{items.map((it, idx) => {
 						const active = Boolean(props.steps[it.key]);
 						const completed = idx < activeIdx;
-						const dotClass = completed || active ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-slate-300';
+						const dotClass = completed || active ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-300';
 						const labelClass = completed || active ? 'text-slate-900' : 'text-slate-400';
 						return (
 							<div key={it.key} className="flex flex-col items-center text-center">
@@ -464,10 +464,10 @@ export default function SigningStatusPage() {
 											? 'INVITE SENT'
 											: '—';
 							const pillClass = declined
-								? 'bg-rose-100 text-rose-800'
-								: steps.completed
-									? 'bg-emerald-100 text-emerald-800'
-									: 'bg-amber-100 text-amber-800';
+							? 'bg-gray-900 text-white'
+							: steps.completed
+								? 'bg-blue-600 text-white'
+								: 'bg-blue-50 text-blue-700';
 							return (
 								<span className={`px-3 py-1 rounded-full text-[11px] font-extrabold tracking-wide ${pillClass}`}>{statusLabel}</span>
 							);
@@ -490,7 +490,7 @@ export default function SigningStatusPage() {
 									<Copy className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" aria-hidden="true" />
 									<span className="break-all">{formattedContractId.short}</span>
 								</button>
-								{copiedIdAt && Date.now() - copiedIdAt < 2000 ? <span className="text-[11px] text-emerald-700 font-semibold">Copied</span> : null}
+								{copiedIdAt && Date.now() - copiedIdAt < 2000 ? <span className="text-[11px] text-blue-700 font-semibold">Copied</span> : null}
 							</div>
 						) : null}
 						<div className="flex flex-wrap gap-x-2 gap-y-1">
@@ -507,7 +507,7 @@ export default function SigningStatusPage() {
 								type="button"
 								onClick={() => void downloadSignedPdf()}
 								disabled={downloadingSigned}
-								className="col-span-3 sm:col-span-auto h-9 sm:h-10 px-4 rounded-full bg-slate-900 text-white text-xs sm:text-sm font-semibold hover:bg-slate-800 disabled:opacity-60"
+								className="col-span-3 sm:col-span-auto h-9 sm:h-10 px-4 rounded-full bg-blue-600 text-white text-xs sm:text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
 							>
 								{downloadingSigned ? 'Downloading…' : 'Signed PDF'}
 							</button>
@@ -540,14 +540,14 @@ export default function SigningStatusPage() {
 			</div>
 
 			{loading ? <div className="py-16 text-center text-slate-500">Loading…</div> : null}
-			{error ? <div className="py-2 text-sm text-rose-600">{error}</div> : null}
+			{error ? <div className="py-2 text-sm text-red-600">{error}</div> : null}
 
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 				<div className="lg:col-span-2 space-y-6">
 					<div className="bg-white rounded-3xl border border-slate-200 p-4 sm:p-6">
 						<div className="text-sm font-extrabold text-slate-900">Signature Tracking</div>
 						{declined ? (
-							<div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+							<div className="mt-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
 								A recipient declined the signing request.
 							</div>
 						) : null}
@@ -596,7 +596,7 @@ export default function SigningStatusPage() {
 													const reason = String(s?.declined_reason || s?.reason || '').trim();
 													if (!reason) return null;
 													if (!isDeclinedStatus(signerStatusLabel(s))) return null;
-													return <div className="text-[11px] text-rose-700 mt-0.5 truncate">Reason: {reason}</div>;
+													return <div className="text-[11px] text-red-700 mt-0.5 truncate">Reason: {reason}</div>;
 												})()}
 											</div>
 										</div>
@@ -629,7 +629,7 @@ export default function SigningStatusPage() {
 
 						<div className="mt-4 space-y-2">
 							{auditLoading ? <div className="text-sm text-slate-500">Loading audit logs…</div> : null}
-							{auditError ? <div className="text-sm text-rose-600">{auditError}</div> : null}
+							{auditError ? <div className="text-sm text-red-600">{auditError}</div> : null}
 							{!auditLoading && !auditError && auditLogs.length === 0 ? (
 								<div className="text-sm text-slate-500">No audit events yet.</div>
 							) : null}

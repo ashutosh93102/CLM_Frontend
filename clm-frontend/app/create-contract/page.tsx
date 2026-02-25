@@ -73,7 +73,7 @@ const TEMPLATE_CARD_META: Record<
     subtitle: 'Define specific project deliverables and timelines.',
     pill: 'Project',
     eta: '~10 mins',
-    iconBg: 'bg-emerald-50 text-emerald-600',
+    iconBg: 'bg-blue-50 text-blue-600',
     icon: <FileText className="w-5 h-5" />,
   },
   'Contractor_Agreement.txt': {
@@ -81,7 +81,7 @@ const TEMPLATE_CARD_META: Record<
     subtitle: 'Terms for independent contractors and freelancers.',
     pill: 'HR',
     eta: '~8 mins',
-    iconBg: 'bg-violet-50 text-violet-600',
+    iconBg: 'bg-blue-50 text-blue-700',
     icon: <FileText className="w-5 h-5" />,
   },
 };
@@ -977,7 +977,7 @@ const CreateContractInner = () => {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-[#F2F0EB]">
+      <div className="min-h-screen bg-gray-50">
         <div className="max-w-[1280px] mx-auto px-4 md:px-8 py-6 md:py-8">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-6">
             <div>
@@ -992,7 +992,7 @@ const CreateContractInner = () => {
                 type="button"
                 onClick={() => setMode('templates')}
                 className={`flex-1 sm:flex-none px-4 py-2 rounded-full text-sm font-medium transition text-center ${
-                  mode === 'templates' ? 'bg-[#0F141F] text-white' : 'text-[#0F141F]/70 hover:text-[#0F141F]'
+                  mode === 'templates' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:text-gray-900'
                 }`}
               >
                 Template Based
@@ -1001,7 +1001,7 @@ const CreateContractInner = () => {
                 type="button"
                 onClick={() => setMode('ai')}
                 className={`flex-1 sm:flex-none px-4 py-2 rounded-full text-sm font-medium transition flex items-center justify-center gap-2 ${
-                  mode === 'ai' ? 'bg-[#0F141F] text-white' : 'text-[#0F141F]/70 hover:text-[#0F141F]'
+                  mode === 'ai' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:text-gray-900'
                 }`}
               >
                 <Sparkles className="w-4 h-4" /> AI Builder
@@ -1017,7 +1017,7 @@ const CreateContractInner = () => {
                   <aside className="col-span-12 lg:col-span-3 bg-white rounded-[18px] border border-black/5 shadow-sm overflow-hidden">
                     <div className="px-6 pt-6 pb-4 border-b border-black/5">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-[#0F141F] text-white flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-xl bg-gray-900 text-white flex items-center justify-center">
                           <Sparkles className="w-5 h-5" />
                         </div>
                         <div>
@@ -1026,7 +1026,7 @@ const CreateContractInner = () => {
                         </div>
                       </div>
 
-                      <div className="mt-4 flex items-center gap-2 bg-[#F6F3ED] rounded-full px-4 py-2">
+                      <div className="mt-4 flex items-center gap-2 bg-gray-100 rounded-full px-4 py-2">
                         <Search className="w-4 h-4 text-black/35" />
                         <input
                           className="bg-transparent outline-none text-sm w-full"
@@ -1056,8 +1056,8 @@ const CreateContractInner = () => {
                               onClick={() => setSelectedTemplate(t.filename)}
                               className={`w-full text-left rounded-2xl border p-4 transition ${
                                 isSelected
-                                  ? 'border-[#FF5C7A] bg-[#FFF1F4]'
-                                  : 'border-black/5 bg-[#F6F3ED] hover:border-black/10'
+                                  ? 'border-blue-500 bg-blue-50'
+                                  : 'border-black/5 bg-gray-100 hover:border-black/10'
                               }`}
                             >
                               <div className="text-sm font-semibold text-[#111827] truncate">{t.name || t.filename}</div>
@@ -1080,27 +1080,27 @@ const CreateContractInner = () => {
                         type="button"
                         onClick={startAiBuilder}
                         disabled={!selectedTemplate || aiLoadingTemplate}
-                        className="h-11 w-full sm:w-auto px-5 rounded-full bg-[#0F141F] text-white text-sm font-semibold disabled:opacity-60"
+                        className="h-11 w-full sm:w-auto px-5 rounded-full bg-gray-900 text-white text-sm font-semibold disabled:opacity-60"
                       >
                         {aiLoadingTemplate ? 'Loading…' : aiDraftUpdatedAt ? 'Resume Draft' : 'Get Started'}
                       </button>
                     </div>
 
                     {aiDraftUpdatedAt ? (
-                      <div className="mt-4 rounded-2xl border border-black/10 bg-[#F6F3ED] px-4 py-3 text-sm text-black/60">
+                      <div className="mt-4 rounded-2xl border border-black/10 bg-gray-100 px-4 py-3 text-sm text-black/60">
                         Saved draft found — last updated {new Date(aiDraftUpdatedAt).toLocaleString()}.
                       </div>
                     ) : null}
 
                     {aiError ? (
-                      <div className="mt-5 bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-2xl text-sm">
+                      <div className="mt-5 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl text-sm">
                         {aiError}
                       </div>
                     ) : null}
 
                     <div className="mt-6">
                       <div className="text-sm font-semibold text-[#0F141F]">Selected Template</div>
-                      <div className="mt-3 rounded-2xl border border-black/5 bg-[#F6F3ED] p-4">
+                      <div className="mt-3 rounded-2xl border border-black/5 bg-gray-100 p-4">
                         <div className="text-sm font-semibold text-[#111827]">
                           {selectedTemplateObj?.name || selectedTemplate || '—'}
                         </div>
@@ -1112,7 +1112,7 @@ const CreateContractInner = () => {
                   </section>
                 </div>
               ) : (
-                <div className="bg-[#F2F0EB]">
+                <div className="bg-gray-50">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                     <div className="flex items-center gap-4 min-w-0">
                       <button
@@ -1146,7 +1146,7 @@ const CreateContractInner = () => {
                   </div>
 
                   {aiError ? (
-                    <div className="mb-6 bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-2xl text-sm">
+                    <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl text-sm">
                       {aiError}
                     </div>
                   ) : null}
@@ -1212,7 +1212,7 @@ const CreateContractInner = () => {
                                     clearAiChat(selectedTemplate);
                                     setAiMessages([]);
                                   }}
-                                  className="text-[11px] font-semibold text-[#FF5C7A] hover:underline"
+                                  className="text-[11px] font-semibold text-blue-600 hover:underline"
                                 >
                                   Clear
                                 </button>
@@ -1236,9 +1236,9 @@ const CreateContractInner = () => {
                                   const isAssistant = m.role === 'assistant';
                                   const pill = isUser ? 'You' : isAssistant ? 'AI' : 'System';
                                   const pillClass = isUser
-                                    ? 'bg-[#0F141F] text-white'
+                                    ? 'bg-gray-900 text-white'
                                     : isAssistant
-                                      ? 'bg-[#FF5C7A] text-white'
+                                      ? 'bg-blue-600 text-white'
                                       : 'bg-slate-100 text-slate-700';
 
                                   return (
@@ -1256,10 +1256,10 @@ const CreateContractInner = () => {
                                       <div
                                         className={`inline-block max-w-[95%] rounded-2xl border px-3 py-2 text-xs whitespace-pre-wrap break-words ${
                                           isUser
-                                            ? 'bg-[#F6F3ED] border-black/10 text-[#111827]'
+                                            ? 'bg-gray-100 border-black/10 text-[#111827]'
                                             : isAssistant
                                               ? 'bg-white border-black/10 text-[#111827]'
-                                              : 'bg-rose-50 border-rose-200 text-rose-700'
+                                              : 'bg-red-50 border-red-200 text-red-700'
                                         }`}
                                       >
                                         {m.content || (m.role === 'assistant' && aiGenerating ? '…' : '')}
@@ -1288,7 +1288,7 @@ const CreateContractInner = () => {
                             value={aiPrompt}
                             onChange={(e) => setAiPrompt(e.target.value)}
                             placeholder="e.g., Add a termination for convenience clause with 30 days notice, and update payment terms to Net 45."
-                            className="w-full min-h-[140px] rounded-2xl border border-black/10 bg-[#F6F3ED] px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FF5C7A]/25"
+                            className="w-full min-h-[140px] rounded-2xl border border-black/10 bg-gray-100 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500/25"
                             disabled={aiGenerating}
                           />
 
@@ -1297,7 +1297,7 @@ const CreateContractInner = () => {
                               type="button"
                               onClick={applyAiPrompt}
                               disabled={aiGenerating || !aiPrompt.trim()}
-                              className="h-10 w-full sm:w-auto px-4 rounded-full bg-[#0F141F] text-white text-sm font-semibold disabled:opacity-60"
+                              className="h-10 w-full sm:w-auto px-4 rounded-full bg-gray-900 text-white text-sm font-semibold disabled:opacity-60"
                             >
                               {aiGenerating ? 'Generating…' : 'Generate Suggestion'}
                             </button>
@@ -1315,7 +1315,7 @@ const CreateContractInner = () => {
                               type="button"
                               onClick={acceptAiSuggestion}
                               disabled={!aiSuggestionText.trim() || aiGenerating}
-                              className="h-10 w-full sm:w-auto px-4 rounded-full bg-[#FF5C7A] text-white text-sm font-semibold disabled:opacity-60"
+                              className="h-10 w-full sm:w-auto px-4 rounded-full bg-blue-600 text-white text-sm font-semibold disabled:opacity-60"
                             >
                               Accept
                             </button>
@@ -1329,7 +1329,7 @@ const CreateContractInner = () => {
                             </button>
                           </div>
 
-                          {aiError ? <div className="mt-3 text-xs text-rose-600">{aiError}</div> : null}
+                          {aiError ? <div className="mt-3 text-xs text-red-600">{aiError}</div> : null}
 
                           <div className="mt-4 text-xs text-black/45">Tip: be specific (sections, numbers, jurisdictions).</div>
                           </div>
@@ -1386,7 +1386,7 @@ const CreateContractInner = () => {
                             onClick={() => setSelectedTemplate(t.filename)}
                             className={`text-left bg-white rounded-[18px] border shadow-sm p-5 transition w-full ${
                               isSelected
-                                ? 'border-[#FF5C7A] ring-2 ring-[#FF5C7A]/20'
+                                ? 'border-blue-600 ring-2 ring-blue-500/20'
                                 : 'border-black/5 hover:border-black/10'
                             }`}
                           >
@@ -1397,7 +1397,7 @@ const CreateContractInner = () => {
                                   <div className="font-semibold text-[#0F141F] truncate">{meta.title}</div>
                                   <div
                                     className={`w-6 h-6 rounded-full flex items-center justify-center border flex-shrink-0 ${
-                                      isSelected ? 'bg-[#FF5C7A] border-[#FF5C7A]' : 'bg-white border-black/10'
+                                      isSelected ? 'bg-blue-600 border-blue-600' : 'bg-white border-black/10'
                                     }`}
                                   >
                                     {isSelected ? <div className="w-2.5 h-2.5 rounded-full bg-white" /> : null}
@@ -1409,7 +1409,7 @@ const CreateContractInner = () => {
                                     {meta.pill}
                                   </span>
                                   {createdByYou ? (
-                                    <span className="text-xs px-2.5 py-1 rounded-full bg-[#F6F3ED] text-[#0F141F]/70 border border-black/5">
+                                    <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-[#0F141F]/70 border border-black/5">
                                       Mine
                                     </span>
                                   ) : null}
@@ -1436,7 +1436,7 @@ const CreateContractInner = () => {
                 <div className="bg-white rounded-[18px] border border-black/5 shadow-sm overflow-hidden lg:col-span-5">
                   <div className="px-5 py-4 border-b border-black/5 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-[#FF5C7A] text-white flex items-center justify-center text-xs font-bold">1</div>
+                      <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">1</div>
                       <div className="font-semibold text-[#0F141F]">Data Entry</div>
                     </div>
                     <button
@@ -1452,7 +1452,7 @@ const CreateContractInner = () => {
                           setTemplateDraftRestored(false);
                         }
                       }}
-                      className="text-xs text-[#FF5C7A] hover:underline"
+                      className="text-xs text-blue-600 hover:underline"
                     >
                       Clear all
                     </button>
@@ -1460,7 +1460,7 @@ const CreateContractInner = () => {
 
                   {templateDraftUpdatedAt ? (
                     <div className="px-5 pt-4">
-                      <div className="rounded-2xl border border-black/10 bg-[#F6F3ED] px-4 py-3 flex items-center justify-between gap-3">
+                      <div className="rounded-2xl border border-black/10 bg-gray-100 px-4 py-3 flex items-center justify-between gap-3">
                         <div className="text-xs text-black/60">
                           {templateDraftRestored ? 'Draft restored' : 'Auto-saved'} — {new Date(templateDraftUpdatedAt).toLocaleString()}
                         </div>
@@ -1495,13 +1495,13 @@ const CreateContractInner = () => {
                               {(section.fields || []).map((f: TemplateSchemaField) => (
                                 <div key={f.key} className={f.type === 'select' ? 'md:col-span-1' : ''}>
                                   <label className="block text-sm font-medium text-[#374151] mb-2">
-                                    {f.label} {f.required ? <span className="text-[#FF5C7A]">*</span> : null}
+                                    {f.label} {f.required ? <span className="text-blue-600">*</span> : null}
                                   </label>
                                   {f.type === 'select' ? (
                                     <select
                                       value={fieldValues[f.key] || ''}
                                       onChange={(e) => setField(f.key, e.target.value)}
-                                      className="w-full px-4 py-3 border border-black/10 rounded-xl bg-white focus:ring-2 focus:ring-[#FF5C7A]/30 focus:border-[#FF5C7A]/40"
+                                      className="w-full px-4 py-3 border border-black/10 rounded-xl bg-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/40"
                                     >
                                       <option value="">Select…</option>
                                       {(f.options || []).map((o) => (
@@ -1515,7 +1515,7 @@ const CreateContractInner = () => {
                                       type={f.type}
                                       value={fieldValues[f.key] || ''}
                                       onChange={(e) => setField(f.key, e.target.value)}
-                                      className="w-full px-4 py-3 border border-black/10 rounded-xl bg-white focus:ring-2 focus:ring-[#FF5C7A]/30 focus:border-[#FF5C7A]/40"
+                                      className="w-full px-4 py-3 border border-black/10 rounded-xl bg-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/40"
                                       placeholder={f.label}
                                     />
                                   )}
@@ -1529,7 +1529,7 @@ const CreateContractInner = () => {
                         <div>
                           <div className="text-[11px] tracking-wider text-[#9CA3AF] font-semibold uppercase">Clause & Constraints</div>
                           <div className="mt-3 space-y-4">
-                            <div className="bg-[#F7F7F7] rounded-2xl p-4 border border-black/5">
+                            <div className="bg-gray-50 rounded-2xl p-4 border border-black/5">
                               <div className="flex items-center justify-between">
                                 <div className="font-semibold text-[#111827] text-sm">Clause Library</div>
                                 <div className="text-xs text-[#6B7280]">Optional</div>
@@ -1539,7 +1539,7 @@ const CreateContractInner = () => {
                                   value={clauseQuery}
                                   onChange={(e) => setClauseQuery(e.target.value)}
                                   placeholder="Search clauses…"
-                                  className="w-full px-4 py-2.5 border border-black/10 rounded-xl bg-white focus:ring-2 focus:ring-[#FF5C7A]/30 focus:border-[#FF5C7A]/40"
+                                  className="w-full px-4 py-2.5 border border-black/10 rounded-xl bg-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/40"
                                 />
                               </div>
                               <div className="mt-3 max-h-44 overflow-y-auto space-y-2 pr-1">
@@ -1572,7 +1572,7 @@ const CreateContractInner = () => {
                               </div>
                             </div>
 
-                            <div className="bg-[#F7F7F7] rounded-2xl p-4 border border-black/5">
+                            <div className="bg-gray-50 rounded-2xl p-4 border border-black/5">
                               <div className="flex items-center justify-between">
                                 <div className="font-semibold text-[#111827] text-sm">Constraints</div>
                                 <button
@@ -1591,7 +1591,7 @@ const CreateContractInner = () => {
                                   value={constraintLibraryQuery}
                                   onChange={(e) => setConstraintLibraryQuery(e.target.value)}
                                   placeholder="Search constraints…"
-                                  className="mt-2 w-full px-4 py-2.5 border border-black/10 rounded-xl bg-white focus:ring-2 focus:ring-[#FF5C7A]/30 focus:border-[#FF5C7A]/40"
+                                  className="mt-2 w-full px-4 py-2.5 border border-black/10 rounded-xl bg-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/40"
                                 />
                                 <div className="mt-2 max-h-44 overflow-y-auto space-y-2 pr-1">
                                   {constraintLibraryLoading ? (
@@ -1621,7 +1621,7 @@ const CreateContractInner = () => {
                                                 {(x.category || 'General') + (x.default ? ` • Default: ${String(x.default)}` : '')}
                                               </div>
                                             </div>
-                                            <div className="text-xs font-semibold text-[#FF5C7A]">Add</div>
+                                            <div className="text-xs font-semibold text-blue-600">Add</div>
                                           </div>
                                         </button>
                                       ))
@@ -1641,7 +1641,7 @@ const CreateContractInner = () => {
                                           setConstraints((p) => p.map((x, i) => (i === idx ? { ...x, name: e.target.value } : x)))
                                         }
                                         placeholder="Constraint name"
-                                        className="w-full px-4 py-2.5 border border-black/10 rounded-xl bg-white focus:ring-2 focus:ring-[#FF5C7A]/30 focus:border-[#FF5C7A]/40"
+                                        className="w-full px-4 py-2.5 border border-black/10 rounded-xl bg-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/40"
                                       />
                                       <div className="flex gap-2">
                                         <input
@@ -1650,7 +1650,7 @@ const CreateContractInner = () => {
                                             setConstraints((p) => p.map((x, i) => (i === idx ? { ...x, value: e.target.value } : x)))
                                           }
                                           placeholder="Value"
-                                          className="flex-1 px-4 py-2.5 border border-black/10 rounded-xl bg-white focus:ring-2 focus:ring-[#FF5C7A]/30 focus:border-[#FF5C7A]/40"
+                                          className="flex-1 px-4 py-2.5 border border-black/10 rounded-xl bg-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/40"
                                         />
                                         <button
                                           type="button"
@@ -1667,7 +1667,7 @@ const CreateContractInner = () => {
                               </div>
                             </div>
 
-                            <div className="bg-[#F7F7F7] rounded-2xl p-4 border border-black/5">
+                            <div className="bg-gray-50 rounded-2xl p-4 border border-black/5">
                               <div className="flex items-center justify-between">
                                 <div className="font-semibold text-[#111827] text-sm">Custom Clauses</div>
                                 <button
@@ -1691,7 +1691,7 @@ const CreateContractInner = () => {
                                             setCustomClauses((p) => p.map((x, i) => (i === idx ? { ...x, title: e.target.value } : x)))
                                           }
                                           placeholder="Clause title"
-                                          className="flex-1 px-4 py-2.5 border border-black/10 rounded-xl bg-white focus:ring-2 focus:ring-[#FF5C7A]/30 focus:border-[#FF5C7A]/40"
+                                          className="flex-1 px-4 py-2.5 border border-black/10 rounded-xl bg-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/40"
                                         />
                                         <button
                                           type="button"
@@ -1708,7 +1708,7 @@ const CreateContractInner = () => {
                                           setCustomClauses((p) => p.map((x, i) => (i === idx ? { ...x, content: e.target.value } : x)))
                                         }
                                         placeholder="Write clause content…"
-                                        className="mt-3 w-full px-4 py-3 border border-black/10 rounded-xl bg-white focus:ring-2 focus:ring-[#FF5C7A]/30 focus:border-[#FF5C7A]/40 min-h-[96px]"
+                                        className="mt-3 w-full px-4 py-3 border border-black/10 rounded-xl bg-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/40 min-h-[96px]"
                                       />
                                     </div>
                                   ))
@@ -1731,7 +1731,7 @@ const CreateContractInner = () => {
                   </div>
 
                   <div className="p-4">
-                    <div className="bg-[#EEF0F3] rounded-[18px] p-2 sm:p-3">
+                    <div className="bg-gray-100 rounded-[18px] p-2 sm:p-3">
                       <div className="bg-white rounded-[14px] shadow-sm border border-black/5 overflow-hidden">
                         <div
                           className="p-5 sm:p-6 overflow-visible lg:overflow-y-auto lg:max-h-[calc(100vh-320px)]"
@@ -1760,7 +1760,7 @@ const CreateContractInner = () => {
                       <button
                         type="submit"
                         disabled={isCreateDisabled}
-                        className="bg-[#0F141F] text-white w-full sm:w-auto px-7 py-3.5 rounded-full shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0"
+                        className="bg-blue-600 text-white w-full sm:w-auto px-7 py-3.5 rounded-full shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0"
                       >
                         {loading ? 'Creating…' : 'Move to editor'}
                       </button>
@@ -1780,7 +1780,7 @@ const CreateContractPage = () => {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#F2F0EB] p-8">
+        <div className="min-h-screen bg-gray-50 p-8">
           <div className="max-w-4xl mx-auto">
             <div className="bg-white rounded-[20px] shadow-sm p-6 text-gray-600">
               Loading...

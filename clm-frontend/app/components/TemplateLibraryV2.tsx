@@ -9,7 +9,6 @@ import {
   FileText,
   Trash2,
   Minus,
-  MoreVertical,
   PlusCircle,
   Plus,
   Search,
@@ -23,9 +22,9 @@ type Template = FileTemplateItem;
 
 function statusPill(status: string) {
   const s = (status || '').toLowerCase();
-  if (s === 'published' || s === 'active') return { label: 'ACTIVE', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
-  if (s === 'archived') return { label: 'ARCHIVED', cls: 'bg-slate-100 text-slate-600 border-slate-200' };
-  return { label: 'DRAFT', cls: 'bg-amber-50 text-amber-700 border-amber-200' };
+  if (s === 'published' || s === 'active') return { label: 'ACTIVE', cls: 'bg-blue-50 text-blue-700 border-blue-200' };
+  if (s === 'archived') return { label: 'ARCHIVED', cls: 'bg-gray-100 text-gray-600 border-gray-200' };
+  return { label: 'DRAFT', cls: 'bg-gray-100 text-gray-600 border-gray-200' };
 }
 
 const TemplateLibrary: React.FC = () => {
@@ -368,345 +367,362 @@ const TemplateLibrary: React.FC = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Page Header */}
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-col md:flex-row md:items-center gap-4">
+      <div className="space-y-5">
+
+        {/* ── UNIFIED HEADER CARD ── */}
+        <div className="bg-white border border-slate-200 rounded-3xl p-6">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="flex items-center gap-4">
-              <h1 className="text-3xl font-extrabold text-slate-900">Template Library</h1>
-              <div className="relative hidden md:block" data-templates-menu>
-                <button
-                  type="button"
-                  onClick={() => setTemplatesMenuOpen((v) => !v)}
-                  className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                >
-                  All Templates
-                  <ChevronDown className="w-4 h-4 text-slate-400" />
-                </button>
-
-                {templatesMenuOpen && (
-                  <div className="absolute left-0 top-12 z-30 w-[340px] rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden">
-                    <div className="px-4 py-3 border-b border-slate-100">
-                      <div className="text-xs font-semibold text-slate-500">Quick switch</div>
-                      <div className="text-sm font-bold text-slate-900">Templates</div>
-                    </div>
-                    <div className="max-h-[320px] overflow-auto">
-                      {templates.length === 0 ? (
-                        <div className="px-4 py-4 text-sm text-slate-500">No templates available</div>
-                      ) : (
-                        templates.map((t) => {
-                          const active = selectedTemplate?.id === t.id;
-                          return (
-                            <button
-                              key={t.id}
-                              type="button"
-                              onClick={() => {
-                                setSelectedTemplate(t);
-                                setTemplatesMenuOpen(false);
-                              }}
-                              className={`w-full px-4 py-3 text-left flex items-center justify-between gap-4 hover:bg-slate-50 ${
-                                active ? 'bg-rose-50' : ''
-                              }`}
-                            >
-                              <div className="min-w-0">
-                                <div className="text-sm font-semibold text-slate-900 truncate">{t.name}</div>
-                                <div className="text-xs text-slate-500 truncate">{t.filename}</div>
-                              </div>
-                              {active && <span className="text-xs font-semibold text-rose-600">Active</span>}
-                            </button>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-                )}
+              <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/25 shrink-0">
+                <FileText className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Template Library</h1>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  {templates.length} total &middot; {stats.activeCount} active &middot; {myTemplatesCount ?? 0} by you
+                </p>
               </div>
             </div>
-
-            {selectedTemplate && (
-              <div className="hidden md:flex items-center gap-2 bg-white rounded-full border border-slate-200 px-4 py-2">
-                <span className="w-2 h-2 rounded-full bg-rose-400" />
-                <span className="text-sm text-slate-700">Previewing: {selectedTemplate.name}</span>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search templates..."
+                  className="w-full sm:w-[260px] bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                />
               </div>
-            )}
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="relative w-full sm:w-auto sm:flex-1 sm:min-w-[220px]">
-              <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search templates..."
-                className="w-full bg-white border border-slate-200 rounded-full pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-200"
-              />
+              <button
+                onClick={() => { if (!user) { setError('Please log in to create templates.'); return; } setCreateOpen(true); }}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 text-white px-5 py-2.5 text-sm font-semibold hover:bg-blue-700 transition"
+              >
+                <PlusCircle className="w-4 h-4" />
+                New Template
+              </button>
             </div>
-
-            <button
-              onClick={() => {
-                if (!user) {
-                  setError('Please log in to create templates.');
-                  return;
-                }
-                setCreateOpen(true);
-              }}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0F141F] text-white px-5 py-3 text-sm font-semibold w-full sm:w-auto"
-            >
-              <PlusCircle className="w-4 h-4" />
-              New Template
-            </button>
-          </div>
-        </div>
-
-        {/* Top Stat Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-          <div className="rounded-2xl bg-gradient-to-br from-rose-400 to-pink-500 text-white p-6 relative overflow-hidden">
-            <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 80% 30%, #fff 0 2px, transparent 3px)' }} />
-            <p className="text-white/90 text-sm">Total Templates</p>
-            <p className="text-4xl font-black mt-3">{String(templates.length).padStart(2, '0')}</p>
-            <p className="text-xs text-white/80 mt-2">In your library</p>
           </div>
 
-          <div className="rounded-2xl bg-white border border-slate-200 p-6">
-            <p className="text-slate-500 text-sm">Recently Used</p>
-            <p className="text-xl font-bold text-slate-900 mt-2">{stats.mostUsedName}</p>
-            <p className="text-xs text-slate-500 mt-1">Used {stats.mostUsedCount} times</p>
-          </div>
-
-          <div className="rounded-2xl bg-white border border-slate-200 p-6">
-            <p className="text-slate-500 text-sm">My Templates</p>
-            <p className="text-4xl font-bold text-slate-900 mt-2">
-              {String(myTemplatesCount ?? 0).padStart(2, '0')}
-            </p>
-            <p className="text-xs text-slate-500 mt-3">
-              {user ? 'Templates you created and saved.' : 'Log in to track your templates.'}
-            </p>
-          </div>
-
-        </div>
-
-        {/* Main Grid */}
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-          {/* Left: Categories + Templates */}
-          <div className="xl:col-span-3">
-            <div className="bg-white border border-slate-200 rounded-3xl p-5">
-              <h3 className="text-sm font-semibold text-slate-700">Categories</h3>
-              <div className="mt-4 space-y-2">
-                {(['All', 'Agreements', 'NDA', 'SOW'] as const).map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setActiveCategory(c)}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm transition ${
-                      activeCategory === c
-                        ? 'bg-rose-500 text-white'
-                        : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
-                    }`}
-                  >
-                    <span>{c}</span>
-                    <span
-                      className={`text-xs px-2 py-1 rounded-lg ${
-                        activeCategory === c ? 'bg-white/20' : 'bg-slate-200 text-slate-600'
-                      }`}
-                    >
-                      {(categories as any)[c] ?? 0}
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="mt-6 flex items-center justify-between">
-                <p className="text-xs font-semibold text-slate-400 tracking-widest">TEMPLATES</p>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowOnlyMine((v) => !v)}
-                    disabled={!user}
-                    className={`inline-flex items-center gap-2 text-sm font-semibold rounded-full px-3 py-1 border transition disabled:opacity-50 disabled:cursor-not-allowed ${
-                      showOnlyMine
-                        ? 'border-rose-300 bg-rose-50 text-rose-700'
-                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                    }`}
-                    title={user ? 'Show only templates you created' : 'Log in to filter your templates'}
-                  >
-                    My
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!user) {
-                        setError('Please log in to create templates.');
-                        return;
-                      }
-                      setCreateOpen(true);
-                    }}
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900 hover:text-slate-700"
-                  >
-                    <Plus className="w-4 h-4" />
-                    New
-                  </button>
+          {/* Inline stats strip */}
+          <div className="mt-5 pt-5 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-5">
+            {[
+              { label: 'Total Templates', value: stats.total, bar: 'bg-blue-600' },
+              { label: 'Active', value: stats.activeCount, bar: 'bg-blue-400' },
+              { label: 'Draft', value: stats.draftCount, bar: 'bg-slate-300' },
+              { label: 'My Templates', value: myTemplatesCount ?? 0, bar: 'bg-slate-700' },
+            ].map((s) => (
+              <div key={s.label} className="flex items-center gap-3">
+                <div className={`w-1 h-10 rounded-full shrink-0 ${s.bar}`} />
+                <div>
+                  <p className="text-2xl font-extrabold text-slate-900 leading-none">{String(s.value).padStart(2, '0')}</p>
+                  <p className="text-xs text-slate-400 mt-1">{s.label}</p>
                 </div>
               </div>
+            ))}
+          </div>
+        </div>
 
-              <div className="mt-4">
-                {loading ? (
-                  <div className="text-slate-500 text-sm py-8 text-center">Loading templates…</div>
-                ) : error ? (
-                  <div className="text-red-600 text-sm py-8 text-center">{error}</div>
-                ) : filteredTemplates.length === 0 ? (
-                  <div className="text-slate-500 text-sm py-8 text-center">No templates found</div>
-                ) : (
-                  <>
-                    <div className="text-[11px] text-slate-500">
-                      Showing {listTemplates.length} of {filteredTemplates.length}
-                    </div>
-                    <div className="max-h-[55vh] xl:max-h-[560px] overflow-auto pr-1 space-y-3">
-                      {listTemplates.map((t) => {
-                        const pill = statusPill(t.status);
+        {/* ── CATEGORY TABS + CONTROLS ── */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
+          {(['All', 'Agreements', 'NDA', 'SOW'] as const).map((c) => (
+            <button
+              key={c}
+              onClick={() => setActiveCategory(c)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap border transition ${
+                activeCategory === c
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              {c}
+              <span className={`text-[11px] px-1.5 py-0.5 rounded-md font-bold ${
+                activeCategory === c ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+              }`}>
+                {(categories as any)[c] ?? 0}
+              </span>
+            </button>
+          ))}
+
+          <div className="ml-auto flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowOnlyMine((v) => !v)}
+              disabled={!user}
+              className={`inline-flex items-center gap-2 text-sm font-semibold rounded-full px-3 py-2 border transition disabled:opacity-50 ${
+                showOnlyMine ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              My Templates
+            </button>
+
+            <div className="relative" data-templates-menu>
+              <button
+                type="button"
+                onClick={() => setTemplatesMenuOpen((v) => !v)}
+                className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+              >
+                Quick Switch <ChevronDown className="w-4 h-4 text-slate-400" />
+              </button>
+              {templatesMenuOpen && (
+                <div className="absolute right-0 top-11 z-30 w-[320px] rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden">
+                  <div className="px-4 py-3 border-b border-slate-100">
+                    <div className="text-xs font-semibold text-slate-400">Quick switch</div>
+                    <div className="text-sm font-bold text-slate-900">Templates</div>
+                  </div>
+                  <div className="max-h-[300px] overflow-auto">
+                    {templates.length === 0 ? (
+                      <div className="px-4 py-4 text-sm text-slate-500">No templates available</div>
+                    ) : (
+                      templates.map((t) => {
                         const active = selectedTemplate?.id === t.id;
                         return (
                           <button
                             key={t.id}
-                            onClick={() => setSelectedTemplate(t)}
-                            className={`w-full text-left rounded-2xl border p-4 transition ${
-                              active ? 'border-rose-400 bg-rose-50' : 'border-slate-200 bg-white hover:bg-slate-50'
+                            type="button"
+                            onClick={() => { setSelectedTemplate(t); setTemplatesMenuOpen(false); }}
+                            className={`w-full px-4 py-3 text-left flex items-center justify-between gap-4 hover:bg-slate-50 ${
+                              active ? 'bg-blue-50' : ''
                             }`}
                           >
-                            <div className="flex items-start gap-3">
-                              <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center">
-                                {(t.contract_type || '').toLowerCase().includes('nda') ? (
-                                  <Shield className="w-5 h-5 text-slate-700" />
-                                ) : (
-                                  <FileText className="w-5 h-5 text-slate-700" />
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-slate-900 truncate">{t.name}</p>
-                                <p className="text-xs text-slate-500 mt-1 truncate">{t.description || 'Template'}</p>
-                                <div className="mt-2 flex items-center gap-2">
-                                  <span className={`text-[10px] px-2 py-1 rounded-full border ${pill.cls}`}>{pill.label}</span>
-                                </div>
-                              </div>
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-slate-900 truncate">{t.name}</div>
+                              <div className="text-xs text-slate-400 truncate">{t.filename}</div>
                             </div>
+                            {active && <span className="text-xs font-semibold text-blue-600">Active</span>}
                           </button>
                         );
-                      })}
-                    </div>
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── MAIN SPLIT LAYOUT ── */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
+
+          {/* LEFT — Template List */}
+          <div className="xl:col-span-4">
+            <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden h-full">
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-extrabold text-slate-800">Templates</span>
+                  <span className="text-xs font-semibold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-lg">{filteredTemplates.length}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { if (!user) { setError('Please log in to create templates.'); return; } setCreateOpen(true); }}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add
+                </button>
+              </div>
+
+              <div className="p-3">
+                {loading ? (
+                  <div className="text-slate-400 text-sm py-12 text-center">Loading…</div>
+                ) : error ? (
+                  <div className="text-red-500 text-sm py-12 text-center">{error}</div>
+                ) : filteredTemplates.length === 0 ? (
+                  <div className="text-slate-400 text-sm py-12 text-center">No templates found</div>
+                ) : (
+                  <div className="space-y-1 max-h-[calc(100vh-340px)] overflow-auto pr-0.5">
+                    {listTemplates.map((t) => {
+                      const pill = statusPill(t.status);
+                      const active = selectedTemplate?.id === t.id;
+                      const isNda = (t.contract_type || '').toLowerCase().includes('nda');
+                      return (
+                        <button
+                          key={t.id}
+                          onClick={() => setSelectedTemplate(t)}
+                          className={`w-full text-left rounded-2xl px-4 py-3.5 transition flex items-center gap-3 ${
+                            active ? 'bg-blue-600' : 'hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                            active ? 'bg-white/20' : 'bg-slate-100'
+                          }`}>
+                            {isNda
+                              ? <Shield className={`w-4 h-4 ${active ? 'text-white' : 'text-slate-500'}`} />
+                              : <FileText className={`w-4 h-4 ${active ? 'text-white' : 'text-slate-500'}`} />
+                            }
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-sm font-semibold truncate ${active ? 'text-white' : 'text-slate-900'}`}>{t.name}</p>
+                            <p className={`text-xs truncate mt-0.5 ${active ? 'text-white/70' : 'text-slate-400'}`}>
+                              {t.description || t.contract_type || 'Template'}
+                            </p>
+                          </div>
+                          <span className={`text-[10px] px-2 py-1 rounded-full border shrink-0 ${
+                            active ? 'bg-white/20 text-white border-white/20' : pill.cls
+                          }`}>
+                            {pill.label}
+                          </span>
+                        </button>
+                      );
+                    })}
 
                     {filteredTemplates.length > LIST_LIMIT && (
                       <button
                         type="button"
-                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-600 hover:bg-slate-100 mt-1"
                         onClick={() => setShowAllList((v) => !v)}
                       >
-                        {showAllList ? 'Show fewer templates' : `Show all templates (${filteredTemplates.length})`}
+                        {showAllList ? 'Show fewer' : `Show all ${filteredTemplates.length} templates`}
                       </button>
                     )}
-                  </>
+                  </div>
                 )}
               </div>
             </div>
           </div>
 
-          
+          {/* RIGHT — Document Preview */}
+          <div className="xl:col-span-8">
+            <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden flex flex-col" style={{ minHeight: '560px' }}>
 
-          {/* Right: Preview */}
-          <div className="xl:col-span-9">
-            <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <button className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center" onClick={() => setZoom((z) => Math.max(50, z - 10))}>
-                    <Minus className="w-4 h-4" />
-                  </button>
-                  <div className="text-xs font-semibold text-slate-600 w-12 text-center">{zoom}%</div>
-                  <button className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center" onClick={() => setZoom((z) => Math.min(150, z + 10))}>
-                    <Plus className="w-4 h-4" />
-                  </button>
+              {/* Preview toolbar */}
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  {selectedTemplate ? (
+                    <>
+                      <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-slate-900 truncate">{selectedTemplate.name}</p>
+                        <p className="text-xs text-slate-400 truncate font-mono">{selectedTemplate.filename}</p>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-slate-400">Select a template to preview</p>
+                  )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
+                  {/* Zoom */}
+                  <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl p-1">
+                    <button
+                      className="w-7 h-7 rounded-lg hover:bg-white hover:shadow-sm flex items-center justify-center text-slate-600 transition"
+                      onClick={() => setZoom((z) => Math.max(50, z - 10))}
+                    >
+                      <Minus className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="text-xs font-semibold text-slate-600 w-10 text-center">{zoom}%</span>
+                    <button
+                      className="w-7 h-7 rounded-lg hover:bg-white hover:shadow-sm flex items-center justify-center text-slate-600 transition"
+                      onClick={() => setZoom((z) => Math.min(150, z + 10))}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Delete */}
                   <button
                     type="button"
                     onClick={deleteSelectedTemplate}
                     disabled={!selectedTemplate || !canDeleteTemplate(selectedTemplate)}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-slate-700 border border-slate-200 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition"
                     title={canDeleteTemplate(selectedTemplate) ? 'Delete this template' : 'Only templates you created can be deleted'}
                   >
                     <Trash2 className="w-4 h-4" />
-                    Delete
+                    <span className="hidden sm:inline">Delete</span>
                   </button>
 
-                <div className="relative flex items-center gap-2" data-download-menu>
-                  <button
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-50 text-rose-600 border border-rose-200 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                    onClick={() => setDownloadOpen((v) => !v)}
-                    disabled={!selectedTemplate || !rawTemplateDoc || templateDocLoading}
-                    type="button"
-                  >
-                    <Download className="w-4 h-4" />
-                    Download
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
-
-                  {downloadOpen && (
-                    <div className="absolute right-0 top-12 z-20 w-56 rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden">
-                      <button
-                        type="button"
-                        className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-800 hover:bg-slate-50 flex items-center gap-2"
-                        onClick={async () => {
-                          setDownloadOpen(false);
-                          await downloadTemplatePdf();
-                        }}
-                      >
-                        <span className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center">
-                          <Download className="w-4 h-4 text-slate-700" />
-                        </span>
-                        Download as PDF
-                      </button>
-                      <button
-                        type="button"
-                        className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-800 hover:bg-slate-50 flex items-center gap-2"
-                        onClick={() => {
-                          setDownloadOpen(false);
-                          downloadTemplateTxt();
-                        }}
-                      >
-                        <span className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center">
-                          <Download className="w-4 h-4 text-slate-700" />
-                        </span>
-                        Download as .txt
-                      </button>
-                    </div>
-                  )}
-                </div>
+                  {/* Download */}
+                  <div className="relative" data-download-menu>
+                    <button
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-700 transition"
+                      onClick={() => setDownloadOpen((v) => !v)}
+                      disabled={!selectedTemplate || !rawTemplateDoc || templateDocLoading}
+                      type="button"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span className="hidden sm:inline">Download</span>
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    </button>
+                    {downloadOpen && (
+                      <div className="absolute right-0 top-11 z-20 w-52 rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden">
+                        <button
+                          type="button"
+                          className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-800 hover:bg-slate-50 flex items-center gap-3"
+                          onClick={async () => { setDownloadOpen(false); await downloadTemplatePdf(); }}
+                        >
+                          <span className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center">
+                            <Download className="w-3.5 h-3.5 text-slate-700" />
+                          </span>
+                          Download as PDF
+                        </button>
+                        <button
+                          type="button"
+                          className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-800 hover:bg-slate-50 flex items-center gap-3"
+                          onClick={() => { setDownloadOpen(false); downloadTemplateTxt(); }}
+                        >
+                          <span className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center">
+                            <Download className="w-3.5 h-3.5 text-slate-700" />
+                          </span>
+                          Download as .txt
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-50">
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 origin-top" style={{ transform: `scale(${zoom / 100})` }}>
-                  <div className="flex items-center justify-between">
-                    <div className="w-8 h-8 rounded-xl bg-slate-900" />
-                    <div className="text-xs text-slate-400">DOC-LOCAL-{selectedTemplate?.id?.slice(0, 6) || '000001'}</div>
-                  </div>
+              {/* Document area */}
+              <div className="flex-1 bg-slate-50 p-6 overflow-auto">
+                <div
+                  className="bg-white rounded-2xl shadow-sm border border-slate-200 mx-auto overflow-hidden"
+                  style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center', maxWidth: '760px' }}
+                >
+                  {/* Document accent stripe */}
+                  <div className="h-1.5 bg-gradient-to-r from-blue-700 to-blue-400" />
 
-                  <div className="mt-6 text-center">
-                    <h3 className="text-xl font-black tracking-wide text-slate-900 uppercase">
-                      {selectedTemplate?.name || 'TEMPLATE'}
-                    </h3>
-                    <p className="text-xs text-slate-400 mt-2">Exact .txt content</p>
-                  </div>
+                  <div className="px-8 py-6">
+                    {/* Doc header */}
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-slate-900 shrink-0" />
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">Contract Document</p>
+                          <p className="text-xs text-slate-400 font-mono">ID-{selectedTemplate?.id?.slice(0, 8) || '—'}</p>
+                        </div>
+                      </div>
+                      {selectedTemplate && (
+                        <span className={`text-[10px] px-2.5 py-1 rounded-full border shrink-0 ${statusPill(selectedTemplate.status).cls}`}>
+                          {statusPill(selectedTemplate.status).label}
+                        </span>
+                      )}
+                    </div>
 
-                  <div className="mt-6">
-                    {templateDocLoading ? (
-                      <div className="text-sm text-slate-500">Loading preview…</div>
-                    ) : rawTemplateDoc ? (
-                      <div>
-                        <pre className="whitespace-pre-wrap text-[11px] leading-6 text-slate-800 font-serif max-h-[520px] overflow-auto">
+                    {/* Title block */}
+                    <div className="mt-5 pb-5 border-b border-slate-100">
+                      <h2 className="text-xl font-black text-slate-900 tracking-tight uppercase">
+                        {selectedTemplate?.name || 'SELECT A TEMPLATE'}
+                      </h2>
+                      {selectedTemplate?.description && (
+                        <p className="text-sm text-slate-500 mt-1.5">{selectedTemplate.description}</p>
+                      )}
+                    </div>
+
+                    {/* Content */}
+                    <div className="mt-5">
+                      {templateDocLoading ? (
+                        <div className="flex items-center gap-3 py-10">
+                          <div className="w-4 h-4 rounded-full border-2 border-blue-400 border-t-transparent animate-spin" />
+                          <span className="text-sm text-slate-400">Loading preview…</span>
+                        </div>
+                      ) : rawTemplateDoc ? (
+                        <pre className="whitespace-pre-wrap text-[11px] leading-6 text-slate-700 font-serif max-h-[58vh] overflow-auto">
                           {rawTemplateDoc}
                         </pre>
-                      </div>
-                    ) : (
-                      <div className="text-sm text-slate-500">No preview available for this template type.</div>
-                    )}
+                      ) : (
+                        <div className="py-14 text-center">
+                          <FileText className="w-10 h-10 text-slate-200 mx-auto" />
+                          <p className="text-sm text-slate-400 mt-3">No preview available for this template type.</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -715,37 +731,40 @@ const TemplateLibrary: React.FC = () => {
         </div>
       </div>
 
-      {/* Create modal */}
+      {/* ── CREATE MODAL ── */}
       {createOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => !createBusy && setCreateOpen(false)} />
-          <div className="relative w-[92vw] max-w-lg rounded-3xl bg-white border border-slate-200 p-6 shadow-xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-extrabold text-slate-900">New Template</h3>
-              <button className="text-slate-500 hover:text-slate-800" onClick={() => !createBusy && setCreateOpen(false)} aria-label="Close">
-                ✕
-              </button>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !createBusy && setCreateOpen(false)} />
+          <div className="relative w-[92vw] max-w-lg rounded-3xl bg-white border border-slate-200 p-6 shadow-2xl">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center shrink-0">
+                <PlusCircle className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-extrabold text-slate-900">New Template</h3>
+                <p className="text-xs text-slate-500">Add a template to your library</p>
+              </div>
+              <button
+                className="ml-auto text-slate-400 hover:text-slate-700 w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 transition"
+                onClick={() => !createBusy && setCreateOpen(false)}
+                aria-label="Close"
+              >✕</button>
             </div>
 
-            <div className="mt-5 space-y-4">
+            <div className="space-y-4">
               <div>
-                <label className="text-sm font-semibold text-slate-700">Name</label>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Name</label>
                 <input
                   value={createName}
                   onChange={(e) => setCreateName(e.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-rose-200"
+                  className="mt-1.5 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-200"
                   placeholder="e.g. Standard MSA"
                 />
               </div>
-
               <div>
-                <label className="text-sm font-semibold text-slate-700">Type</label>
-                <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 flex items-center justify-between">
-                  <select
-                    value={createType}
-                    onChange={(e) => setCreateType(e.target.value)}
-                    className="w-full bg-transparent outline-none text-sm text-slate-900"
-                  >
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Type</label>
+                <div className="mt-1.5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 flex items-center justify-between">
+                  <select value={createType} onChange={(e) => setCreateType(e.target.value)} className="w-full bg-transparent outline-none text-sm text-slate-900">
                     <option value="NDA">NDA</option>
                     <option value="MSA">MSA</option>
                     <option value="EMPLOYMENT">Employment</option>
@@ -753,47 +772,41 @@ const TemplateLibrary: React.FC = () => {
                     <option value="PROPERTY_MANAGEMENT">Property Management</option>
                     <option value="SERVICE_AGREEMENT">Service Agreement</option>
                   </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400" />
+                  <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
                 </div>
               </div>
-
               <div>
-                <label className="text-sm font-semibold text-slate-700">Description</label>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Description</label>
                 <textarea
                   value={createDescription}
                   onChange={(e) => setCreateDescription(e.target.value)}
-                  className="mt-2 w-full min-h-[96px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-rose-200"
+                  className="mt-1.5 w-full min-h-[80px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-200"
                   placeholder="Short summary (optional)"
                 />
               </div>
-
               <div>
-                <label className="text-sm font-semibold text-slate-700">Template Text</label>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Template Text</label>
                 <textarea
                   value={createContent}
                   onChange={(e) => setCreateContent(e.target.value)}
-                  className="mt-2 w-full min-h-[180px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-rose-200 font-mono"
+                  className="mt-1.5 w-full min-h-[160px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-200 font-mono"
                   placeholder="Paste the exact template text (.txt) you want to display"
                 />
-                <p className="text-xs text-slate-500 mt-2">Saved to your template library.</p>
+                <p className="text-xs text-slate-400 mt-1.5">Saved to your template library.</p>
               </div>
             </div>
 
-            <div className="mt-6 flex items-center gap-3">
+            <div className="mt-5 flex items-center gap-3">
               <button
-                className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700"
+                className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                 onClick={() => setCreateOpen(false)}
                 disabled={createBusy}
-              >
-                Cancel
-              </button>
+              >Cancel</button>
               <button
-                className="flex-1 rounded-2xl bg-[#0F141F] px-4 py-3 text-sm font-semibold text-white"
+                className="flex-1 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
                 onClick={createTemplate}
                 disabled={createBusy}
-              >
-                {createBusy ? 'Creating…' : 'Create Template'}
-              </button>
+              >{createBusy ? 'Creating…' : 'Create Template'}</button>
             </div>
           </div>
         </div>

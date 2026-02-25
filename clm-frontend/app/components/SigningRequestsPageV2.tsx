@@ -19,15 +19,15 @@ function formatMaybeDate(value: any): string {
 function statusBadgeClass(status: string): string {
 	const raw = String(status || '').trim().toLowerCase();
 	if (['completed', 'signed', 'executed', 'done', 'finished'].includes(raw)) {
-		return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+		return 'bg-blue-600 text-white border-blue-600';
 	}
 	if (['declined', 'rejected', 'canceled', 'cancelled', 'refused', 'failed', 'error'].includes(raw)) {
-		return 'bg-rose-50 text-rose-700 border-rose-200';
+		return 'bg-gray-900 text-white border-gray-900';
 	}
 	if (['sent', 'invited', 'pending', 'in_progress', 'in progress', 'viewed', 'draft'].includes(raw)) {
-		return 'bg-amber-50 text-amber-800 border-amber-200';
+		return 'bg-blue-50 text-blue-700 border-blue-200';
 	}
-	return 'bg-slate-50 text-slate-700 border-slate-200';
+	return 'bg-gray-100 text-gray-700 border-gray-200';
 }
 
 function safeFilenameBase(title: string): string {
@@ -171,160 +171,214 @@ const SigningRequestsPageV2: React.FC = () => {
 
 	return (
 		<DashboardLayout>
-			<div className="flex items-center justify-between gap-4 mb-6">
-				<div className="min-w-0">
-					<h1 className="text-2xl md:text-3xl font-extrabold text-slate-900">Signing Requests</h1>
-					<p className="mt-2 text-sm text-slate-600">
-						Default provider: <span className="font-semibold">In-house signing</span>
-					</p>
-				</div>
+			<div className="space-y-6">
 
-				<div className="flex items-center gap-3">
-					<div className="relative hidden sm:block">
-						<Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-						<input
-							value={search}
-							onChange={(e) => setSearch(e.target.value)}
-							placeholder="Search by contract or signer…"
-							className="w-[340px] bg-white border border-slate-200 rounded-full pl-11 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-200"
-						/>
-					</div>
-					<button
-						onClick={() => router.push('/contracts')}
-						className="inline-flex items-center gap-2 rounded-full bg-[#0F141F] text-white px-5 py-3 text-sm font-semibold"
-					>
-						<FileSignature className="w-4 h-4" />
-						Go to Contracts
-					</button>
-				</div>
-			</div>
-
-			<div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-				{[
-					{ label: 'Total', value: stats.total },
-					{ label: 'Draft', value: stats.draft },
-					{ label: 'Active', value: stats.active },
-					{ label: 'Completed', value: stats.completed },
-				].map((s) => (
-					<div key={s.label} className="rounded-3xl bg-white border border-slate-200 p-6">
-						<p className="text-slate-500 text-sm">{s.label}</p>
-						<p className="text-4xl font-extrabold text-slate-900 mt-2">{String(s.value).padStart(2, '0')}</p>
-					</div>
-				))}
-			</div>
-
-			<div className="bg-white rounded-3xl border border-slate-200 overflow-hidden">
-				<div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between flex-wrap gap-3">
+				{/* ── HEADER ── */}
+				<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 					<div>
-						<p className="text-lg font-extrabold text-slate-900">All Signing Requests</p>
-						<p className="text-sm text-slate-500 mt-1">{visibleRows.length} request{visibleRows.length !== 1 ? 's' : ''}</p>
+						<h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Signing Requests</h1>
+						<p className="mt-1 text-sm text-slate-500">
+							In-house signing &middot; <span className="font-semibold text-slate-700">{visibleRows.length} request{visibleRows.length !== 1 ? 's' : ''}</span>
+						</p>
 					</div>
-
-					<div className="flex gap-2 flex-wrap">
-						{(['all', 'draft', 'sent', 'in_progress', 'completed', 'declined', 'failed'] as StatusFilter[]).map((s) => (
-							<button
-								key={s}
-								onClick={() => setFilterStatus(s)}
-								className={`px-3 py-2 rounded-xl text-xs font-semibold border transition ${
-									filterStatus === s
-										? 'bg-[#0F141F] text-white border-[#0F141F]'
-										: 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-								}`}
-							>
-								{s === 'all'
-									? 'All'
-									: s === 'in_progress'
-										? 'In Progress'
-										: s.charAt(0).toUpperCase() + s.slice(1)}
-							</button>
-						))}
+					<div className="flex items-center gap-3">
+						<div className="relative">
+							<Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+							<input
+								value={search}
+								onChange={(e) => setSearch(e.target.value)}
+								placeholder="Search by contract or signer…"
+								className="w-full sm:w-[280px] bg-white border border-slate-200 rounded-2xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+							/>
+						</div>
+						<button
+							onClick={() => router.push('/contracts')}
+							className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 text-white px-5 py-2.5 text-sm font-semibold hover:bg-blue-700 transition whitespace-nowrap"
+						>
+							<FileSignature className="w-4 h-4" />
+							Go to Contracts
+						</button>
 					</div>
 				</div>
 
-				<div className="divide-y divide-slate-200">
-					{loading ? (
-						<div className="py-16 text-center text-slate-500">Loading signing requests…</div>
-					) : error ? (
-						<div className="py-16 text-center text-rose-600">{error}</div>
-					) : visibleRows.length === 0 ? (
-						<div className="py-16 text-center text-slate-500">No signing requests found</div>
-					) : (
-						visibleRows.map((row) => {
-							const contractId = String(row.contract_id || '').trim();
-							const signers = Array.isArray(row.signers) ? row.signers : [];
-							const signedCount = signers.filter((s) => Boolean(s?.has_signed) || String(s?.status || '').toLowerCase() === 'signed').length;
-							const canDownload = String(row.status || '').toLowerCase() === 'completed';
-							const disabled = downloadingFor === contractId;
+				{/* ── STAT STRIP ── */}
+				<div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+					{[
+						{ label: 'Total', value: stats.total, bar: 'bg-slate-300', sub: 'All requests' },
+						{ label: 'Active', value: stats.active, bar: 'bg-blue-500', sub: 'Sent or in progress' },
+						{ label: 'Completed', value: stats.completed, bar: 'bg-blue-700', sub: 'Fully signed' },
+						{ label: 'Declined', value: stats.declined, bar: 'bg-slate-800', sub: 'Rejected or failed' },
+					].map((s) => (
+						<div key={s.label} className="bg-white rounded-2xl border border-slate-200 p-5 flex items-center gap-4 hover:shadow-sm transition">
+							<div className={`w-1 h-12 rounded-full shrink-0 ${s.bar}`} />
+							<div>
+								<p className="text-3xl font-extrabold text-slate-900 leading-none">{String(s.value).padStart(2, '0')}</p>
+								<p className="text-xs font-semibold text-slate-500 mt-1">{s.label}</p>
+								<p className="text-[11px] text-slate-400">{s.sub}</p>
+							</div>
+						</div>
+					))}
+				</div>
 
-							return (
-								<div
-									key={row.id}
-									role="button"
-									tabIndex={0}
-									onClick={() => openSigningStatus(contractId)}
-									onKeyDown={(e) => {
-										if (e.key === 'Enter' || e.key === ' ') {
-											e.preventDefault();
-											openSigningStatus(contractId);
-										}
-									}}
-									className="w-full text-left px-6 py-5 hover:bg-slate-50 transition cursor-pointer"
+				{/* ── TABLE CARD ── */}
+				<div className="bg-white rounded-3xl border border-slate-200 overflow-hidden">
+
+					{/* Toolbar */}
+					<div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+						<p className="text-sm font-extrabold text-slate-800">All Requests</p>
+						<div className="flex gap-1.5 flex-wrap">
+							{(['all', 'draft', 'sent', 'in_progress', 'completed', 'declined', 'failed'] as StatusFilter[]).map((s) => (
+								<button
+									key={s}
+									onClick={() => setFilterStatus(s)}
+									className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
+										filterStatus === s
+											? 'bg-blue-600 text-white border-blue-600'
+											: 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+									}`}
 								>
-									<div className="flex items-center justify-between gap-4">
-										<div className="min-w-0">
-											<p className="font-semibold text-slate-900 truncate">{row.contract_title || 'Contract'}</p>
-											<p className="text-xs text-slate-500 mt-1 truncate">
-												{contractId} • {signedCount}/{signers.length} signed
-											</p>
-											<p className="text-xs text-slate-500 mt-1 truncate">
-												Sent: {formatMaybeDate(row.sent_at)} • Updated: {formatMaybeDate(row.updated_at || row.last_activity_at)}
-											</p>
-										</div>
+									{s === 'all' ? 'All' : s === 'in_progress' ? 'In Progress' : s.charAt(0).toUpperCase() + s.slice(1)}
+								</button>
+							))}
+						</div>
+					</div>
 
-										<div className="flex items-center gap-3 shrink-0">
-											<span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border ${statusBadgeClass(row.status)}`}>
-												{String(row.status || '—').toUpperCase()}
-											</span>
+					{/* Column headers */}
+					{!loading && !error && visibleRows.length > 0 && (
+						<div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 bg-slate-50 border-b border-slate-100 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+							<div className="col-span-5">Contract</div>
+							<div className="col-span-2 text-center">Signers</div>
+							<div className="col-span-2">Timeline</div>
+							<div className="col-span-2">Status</div>
+							<div className="col-span-1 text-right">Actions</div>
+						</div>
+					)}
 
-											{canDownload ? (
-												<>
-													<button
-														type="button"
-														onClick={(e) => {
-															e.preventDefault();
-															e.stopPropagation();
-															downloadExecuted(row);
-														}}
-														disabled={disabled}
-														className="inline-flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-800 w-9 h-9 hover:bg-slate-50 disabled:opacity-50"
-														aria-label="Download executed PDF"
-														title="Download executed PDF"
-													>
-														<Download className="w-4 h-4" />
-													</button>
-													<button
-														type="button"
-														onClick={(e) => {
-															e.preventDefault();
-															e.stopPropagation();
-															downloadCertificate(row);
-														}}
-														disabled={disabled}
-														className="inline-flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-800 w-9 h-9 hover:bg-slate-50 disabled:opacity-50"
-														aria-label="Download certificate"
-														title="Download certificate"
-													>
-														<span className="text-xs font-extrabold">C</span>
-													</button>
-												</>
-											) : null}
+					{/* Rows */}
+					<div className="divide-y divide-slate-100">
+						{loading ? (
+							<div className="py-20 text-center">
+								<div className="w-6 h-6 rounded-full border-2 border-blue-400 border-t-transparent animate-spin mx-auto" />
+								<p className="text-sm text-slate-400 mt-3">Loading signing requests…</p>
+							</div>
+						) : error ? (
+							<div className="py-20 text-center text-red-500 text-sm">{error}</div>
+						) : visibleRows.length === 0 ? (
+							<div className="py-20 text-center">
+								<FileSignature className="w-10 h-10 text-slate-200 mx-auto" />
+								<p className="text-sm text-slate-400 mt-3">No signing requests found</p>
+							</div>
+						) : (
+							visibleRows.map((row) => {
+								const contractId = String(row.contract_id || '').trim();
+								const signers = Array.isArray(row.signers) ? row.signers : [];
+								const signedCount = signers.filter((s) => Boolean(s?.has_signed) || String(s?.status || '').toLowerCase() === 'signed').length;
+								const canDownload = String(row.status || '').toLowerCase() === 'completed';
+								const disabled = downloadingFor === contractId;
+								const pct = signers.length > 0 ? Math.round((signedCount / signers.length) * 100) : 0;
 
-											<span className="text-sm font-semibold text-slate-700">View →</span>
+								return (
+									<div
+										key={row.id}
+										role="button"
+										tabIndex={0}
+										onClick={() => openSigningStatus(contractId)}
+										onKeyDown={(e) => {
+											if (e.key === 'Enter' || e.key === ' ') {
+												e.preventDefault();
+												openSigningStatus(contractId);
+											}
+										}}
+										className="px-6 py-4 hover:bg-slate-50 transition cursor-pointer group"
+									>
+										<div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 items-center">
+
+											{/* Contract info */}
+											<div className="md:col-span-5 flex items-center gap-3 min-w-0">
+												<div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center shrink-0 group-hover:bg-blue-50 transition">
+													<FileSignature className="w-4 h-4 text-slate-400 group-hover:text-blue-500 transition" />
+												</div>
+												<div className="min-w-0">
+													<p className="text-sm font-semibold text-slate-900 truncate">{row.contract_title || 'Contract'}</p>
+													<p className="text-[11px] text-slate-400 truncate font-mono mt-0.5">{contractId || '—'}</p>
+												</div>
+											</div>
+
+											{/* Signers + progress bar */}
+											<div className="md:col-span-2 flex flex-col items-start md:items-center gap-1.5">
+												<div className="flex items-center gap-1.5">
+													<span className="text-sm font-bold text-slate-800">{signedCount}</span>
+													<span className="text-xs text-slate-400">/ {signers.length} signed</span>
+												</div>
+												{signers.length > 0 && (
+													<div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+														<div
+															className="h-full rounded-full bg-blue-500 transition-all"
+															style={{ width: `${pct}%` }}
+														/>
+													</div>
+												)}
+											</div>
+
+											{/* Timeline */}
+											<div className="md:col-span-2 min-w-0">
+												<p className="text-xs text-slate-600 truncate">{formatMaybeDate(row.sent_at)}</p>
+												<p className="text-[11px] text-slate-400 truncate mt-0.5">Upd: {formatMaybeDate(row.updated_at || row.last_activity_at)}</p>
+											</div>
+
+											{/* Status badge */}
+											<div className="md:col-span-2">
+												<span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border ${statusBadgeClass(row.status)}`}>
+													{String(row.status || '—').replace('_', ' ').toUpperCase()}
+												</span>
+											</div>
+
+											{/* Actions */}
+											<div
+												className="md:col-span-1 flex items-center justify-end gap-1.5"
+												onClick={(e) => e.stopPropagation()}
+											>
+												{canDownload ? (
+													<>
+														<button
+															type="button"
+															onClick={(e) => { e.preventDefault(); e.stopPropagation(); void downloadExecuted(row); }}
+															disabled={disabled}
+															className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-blue-50 hover:text-blue-600 flex items-center justify-center text-slate-500 transition disabled:opacity-50"
+															title="Download signed PDF"
+														>
+															<Download className="w-3.5 h-3.5" />
+														</button>
+														<button
+															type="button"
+															onClick={(e) => { e.preventDefault(); e.stopPropagation(); void downloadCertificate(row); }}
+															disabled={disabled}
+															className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-blue-50 hover:text-blue-600 flex items-center justify-center text-slate-500 text-[10px] font-black transition disabled:opacity-50"
+															title="Download certificate"
+														>C</button>
+													</>
+												) : (
+													<span className="text-xs font-semibold text-blue-600 opacity-0 group-hover:opacity-100 transition">View →</span>
+												)}
+											</div>
 										</div>
 									</div>
-								</div>
-							);
-						})
+								);
+							})
+						)}
+					</div>
+
+					{/* Footer */}
+					{!loading && visibleRows.length > 0 && (
+						<div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
+							<p className="text-xs text-slate-400">{visibleRows.length} request{visibleRows.length !== 1 ? 's' : ''} displayed</p>
+							<button
+								onClick={() => router.push('/contracts')}
+								className="text-xs font-semibold text-blue-600 hover:underline"
+							>
+								View all contracts →
+							</button>
+						</div>
 					)}
 				</div>
 			</div>

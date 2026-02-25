@@ -35,13 +35,13 @@ const iconForType = (type: string) => {
   const t = (type || '').toLowerCase();
   if (t === 'pdf') {
     return (
-      <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center">
+      <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
         <FileText className="w-5 h-5" />
       </div>
     );
   }
   return (
-    <div className="w-9 h-9 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center">
+    <div className="w-9 h-9 rounded-xl bg-gray-100 text-gray-600 flex items-center justify-center">
       <FileText className="w-5 h-5" />
     </div>
   );
@@ -200,7 +200,7 @@ export default function UploadsPage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search..."
-                className="w-full bg-white border border-slate-200 rounded-full pl-10 pr-4 py-3 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-200"
+                className="w-full bg-white border border-slate-200 rounded-full pl-10 pr-4 py-3 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
               />
             </div>
           </div>
@@ -209,16 +209,16 @@ export default function UploadsPage() {
         <div className="bg-white rounded-[28px] p-6 md:p-8 shadow-sm">
           {/* Upload Area */}
           <div className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-3">
-            <UploadCloud className="w-5 h-5 text-rose-500" />
+            <UploadCloud className="w-5 h-5 text-blue-600" />
             Private Uploads
           </div>
 
           <div
             className={`relative rounded-[22px] border-2 border-dashed overflow-hidden transition-all duration-300 ease-out ${
-              dragOver ? 'border-rose-300 shadow-lg shadow-rose-100/70 scale-[1.01]' : 'border-rose-200'
-            } ${busy ? 'opacity-90' : 'hover:shadow-md hover:shadow-rose-100/50'}`}
+              dragOver ? 'border-blue-300 shadow-lg shadow-blue-100/70 scale-[1.01]' : 'border-blue-200'
+            } ${busy ? 'opacity-90' : 'hover:shadow-md hover:shadow-blue-100/50'}`}
             style={{
-              background: 'linear-gradient(180deg, rgba(255,92,122,0.85), rgba(255,92,122,0.70))',
+              background: 'linear-gradient(180deg, rgba(37,99,235,0.85), rgba(37,99,235,0.70))',
             }}
             onDragEnter={(e) => {
               e.preventDefault();
@@ -304,7 +304,7 @@ export default function UploadsPage() {
                 const pct = Math.min(100, Math.max(0, uploadPercent));
                 const sparkLeft = `calc(${pct}% - 10px)`;
                 return (
-                  <div className="rounded-2xl border border-rose-200 bg-white/70 px-4 py-3 shadow-sm">
+                  <div className="rounded-2xl border border-blue-200 bg-white/70 px-4 py-3 shadow-sm">
                     <div className="flex items-center justify-between text-xs text-slate-700">
                       <div className="font-extrabold">Uploading</div>
                       <div className="font-extrabold tabular-nums">{pct}%</div>
@@ -315,15 +315,15 @@ export default function UploadsPage() {
                         className="absolute inset-0 opacity-50 anim-shimmer"
                         style={{
                           background:
-                            'linear-gradient(90deg, rgba(255,90,160,0.06) 0%, rgba(255,90,160,0.22) 35%, rgba(255,90,160,0.06) 70%)',
+                            'linear-gradient(90deg, rgba(37,99,235,0.06) 0%, rgba(37,99,235,0.22) 35%, rgba(37,99,235,0.06) 70%)',
                         }}
                       />
                       <div
-                        className="h-full rounded-full bg-gradient-to-r from-rose-500 via-fuchsia-500 to-amber-400 transition-[width] duration-200"
+                        className="h-full rounded-full bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400 transition-[width] duration-200"
                         style={{ width: `${pct}%` }}
                       />
                       <div
-                        className="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-white/80 border border-white shadow-[0_10px_30px_rgba(244,63,94,0.25)] blur-[0.2px] animate-pulse"
+                        className="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-white/80 border border-white shadow-[0_10px_30px_rgba(37,99,235,0.25)] blur-[0.2px] animate-pulse"
                         style={{ left: sparkLeft }}
                       />
                     </div>
@@ -338,7 +338,7 @@ export default function UploadsPage() {
           )}
 
           {error && (
-            <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
             </div>
           )}
@@ -412,7 +412,7 @@ export default function UploadsPage() {
                         </button>
                         <button
                           type="button"
-                          className="text-rose-500 hover:text-rose-700"
+                          className="text-gray-400 hover:text-red-600"
                           aria-label="Delete"
                           onClick={() => void remove(it)}
                           disabled={busy}
@@ -453,7 +453,7 @@ export default function UploadsPage() {
                         </button>
                         <button
                           type="button"
-                          className="text-rose-500 hover:text-rose-700"
+                          className="text-gray-400 hover:text-red-600"
                           aria-label="Delete"
                           onClick={() => void remove(it)}
                           disabled={busy}
@@ -523,7 +523,7 @@ export default function UploadsPage() {
                   </button>
                   <button
                     type="button"
-                    className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100"
+                    className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-red-50 hover:text-red-700"
                     onClick={() => void remove(previewItem)}
                   >
                     <Trash2 className="w-4 h-4" />

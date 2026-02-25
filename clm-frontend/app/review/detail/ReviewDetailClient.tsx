@@ -19,10 +19,10 @@ import {
 
 const statusPill = (status: ReviewContractStatus) => {
   const map: Record<ReviewContractStatus, string> = {
-    uploaded: 'bg-slate-50 text-slate-700 border-slate-200',
-    processing: 'bg-amber-50 text-amber-700 border-amber-200',
-    ready: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    failed: 'bg-rose-50 text-rose-700 border-rose-200',
+    uploaded: 'bg-gray-50 text-gray-700 border-gray-200',
+    processing: 'bg-blue-50 text-blue-700 border-blue-200',
+    ready: 'bg-blue-600 text-white border-blue-500',
+    failed: 'bg-gray-900 text-white border-gray-800',
   };
   return map[status] || 'bg-slate-50 text-slate-700 border-slate-200';
 };
@@ -46,11 +46,11 @@ const Chip = ({
   tone?: 'slate' | 'amber' | 'rose' | 'emerald' | 'violet';
 }) => {
   const cls: Record<string, string> = {
-    slate: 'bg-slate-50 text-slate-700 border-slate-200',
-    amber: 'bg-amber-50 text-amber-700 border-amber-200',
-    rose: 'bg-rose-50 text-rose-700 border-rose-200',
-    emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    violet: 'bg-violet-50 text-violet-700 border-violet-200',
+    slate: 'bg-gray-50 text-gray-700 border-gray-200',
+    amber: 'bg-blue-50 text-blue-700 border-blue-200',
+    rose: 'bg-gray-900 text-white border-gray-800',
+    emerald: 'bg-blue-600 text-white border-blue-500',
+    violet: 'bg-blue-50 text-blue-700 border-blue-200',
   };
   return (
     <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border ${cls[tone] || cls.slate}`}>
@@ -615,7 +615,7 @@ export default function ReviewDetailPage() {
         </div>
 
         {error && (
-          <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl p-4 text-sm">
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl p-4 text-sm">
             {error}
           </div>
         )}
@@ -630,7 +630,7 @@ export default function ReviewDetailPage() {
             <div className="bg-white rounded-[28px] border border-slate-200 px-4 py-3 md:px-6 md:py-4 flex items-center gap-3 flex-wrap anim-fade-up">
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div className="inline-flex items-center gap-2 px-3 py-2 rounded-2xl bg-slate-50 border border-slate-200 min-w-0">
-                  <FileText className="w-4 h-4 text-rose-500" />
+                  <FileText className="w-4 h-4 text-blue-600" />
                   <span className="text-sm font-semibold text-slate-900 truncate">
                     {item.original_filename || item.title}
                   </span>
@@ -645,7 +645,7 @@ export default function ReviewDetailPage() {
                     value={extractionQuery}
                     onChange={(e) => setExtractionQuery(e.target.value)}
                     placeholder="Search extraction…"
-                    className="w-full bg-white border border-slate-200 rounded-full pl-10 pr-4 py-3 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-200"
+                    className="w-full bg-white border border-slate-200 rounded-full pl-10 pr-4 py-3 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   />
                   {extractionQuery.trim() ? (
                     <button
@@ -672,7 +672,7 @@ export default function ReviewDetailPage() {
                   <button
                     type="button"
                     onClick={() => setDownloadOpen((v) => !v)}
-                    className="inline-flex items-center gap-2 rounded-full bg-[#0F141F] text-white px-4 py-2 text-sm font-semibold hover:bg-[#0F141F]/90"
+                    className="inline-flex items-center gap-2 rounded-full bg-gray-900 text-white px-4 py-2 text-sm font-semibold hover:bg-gray-800"
                     disabled={busy || loading}
                   >
                     <Download className="w-4 h-4" />
@@ -777,7 +777,7 @@ export default function ReviewDetailPage() {
                     <button
                       type="button"
                       onClick={() => printStyledReport()}
-                      className="text-xs font-bold text-rose-600 hover:text-rose-700"
+                      className="text-xs font-bold text-blue-600 hover:text-blue-700"
                       disabled={busy || loading}
                       title="Export styled report"
                     >
@@ -842,19 +842,19 @@ export default function ReviewDetailPage() {
                   </div>
 
                   {!readyLike && (
-                    <div className="mt-4 rounded-2xl bg-amber-50 border border-amber-200 p-4">
-                      <div className="text-sm font-semibold text-amber-900">Analysis pending</div>
-                      <div className="text-xs text-amber-800 mt-1">Processing may take a moment.</div>
+                    <div className="mt-4 rounded-2xl bg-gray-50 border border-gray-200 p-4">
+                      <div className="text-sm font-semibold text-gray-900">Analysis pending</div>
+                      <div className="text-xs text-gray-600 mt-1">Processing may take a moment.</div>
                     </div>
                   )}
 
                   {item.status === 'failed' && (
-                    <div className="mt-4 rounded-2xl bg-rose-50 border border-rose-200 p-4">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-rose-800">
+                    <div className="mt-4 rounded-2xl bg-red-50 border border-red-200 p-4">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-red-800">
                         <TriangleAlert className="w-4 h-4" />
                         Review failed
                       </div>
-                      <div className="text-xs text-rose-700 mt-2 whitespace-pre-wrap">
+                      <div className="text-xs text-red-700 mt-2 whitespace-pre-wrap">
                         {item.error_message || 'Unknown error'}
                       </div>
                     </div>
@@ -939,9 +939,9 @@ export default function ReviewDetailPage() {
                                     {expanded ? highlight(extracted || '—', extractionQuery) : highlight(extractedShort || '—', extractionQuery)}
                                   </div>
                                 </div>
-                                <div className="rounded-2xl border border-rose-200 bg-rose-50/30 p-3">
+                                <div className="rounded-2xl border border-blue-100 bg-blue-50/30 p-3">
                                   <div className="flex items-center justify-between gap-2">
-                                    <div className="text-[10px] font-bold tracking-wide text-rose-600">RECOMMENDATION</div>
+                                    <div className="text-[10px] font-bold tracking-wide text-blue-600">RECOMMENDATION</div>
                                     {recommendation ? (
                                       <button
                                         type="button"
@@ -1010,7 +1010,7 @@ export default function ReviewDetailPage() {
                         <div className="text-sm text-slate-500">—</div>
                       ) : (
                         filteredSuggestions.slice(0, 8).map((s: any, idx: number) => (
-                          <div key={idx} className="rounded-3xl border border-rose-100 bg-rose-50/40 p-4">
+                          <div key={idx} className="rounded-3xl border border-blue-100 bg-blue-50/40 p-4">
                             <div className="text-sm font-semibold text-slate-900">{s?.title || 'Suggestion'}</div>
                             <div className="text-xs text-slate-700 mt-2 whitespace-pre-wrap">{highlight(String(s?.text || ''), extractionQuery)}</div>
                           </div>

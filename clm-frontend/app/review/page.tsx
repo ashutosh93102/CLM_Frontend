@@ -41,12 +41,12 @@ const formatDate = (iso?: string | null): string => {
 
 const statusPill = (status: ReviewContractStatus) => {
   const map: Record<ReviewContractStatus, string> = {
-    uploaded: 'bg-slate-50 text-slate-700 border-slate-200',
-    processing: 'bg-amber-50 text-amber-700 border-amber-200',
-    ready: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    failed: 'bg-rose-50 text-rose-700 border-rose-200',
+    uploaded: 'bg-gray-100 text-gray-700 border-gray-200',
+    processing: 'bg-blue-50 text-blue-700 border-blue-200',
+    ready: 'bg-blue-600 text-white border-blue-600',
+    failed: 'bg-gray-900 text-white border-gray-900',
   };
-  return map[status] || 'bg-slate-50 text-slate-700 border-slate-200';
+  return map[status] || 'bg-gray-100 text-gray-700 border-gray-200';
 };
 
 export default function ReviewPage() {
@@ -263,7 +263,7 @@ export default function ReviewPage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search..."
-                className="w-full bg-white border border-slate-200 rounded-full pl-10 pr-4 py-3 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-200"
+                className="w-full bg-white border border-slate-200 rounded-full pl-10 pr-4 py-3 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
               />
             </div>
           </div>
@@ -272,16 +272,16 @@ export default function ReviewPage() {
         {/* Upload */}
         <div className="bg-white rounded-[28px] p-6 md:p-8 shadow-sm">
           <div className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-3">
-            <UploadCloud className="w-5 h-5 text-rose-500" />
+            <UploadCloud className="w-5 h-5 text-blue-600" />
             Upload Contract for Review
           </div>
 
           <div
             className={`relative rounded-[22px] border-2 border-dashed overflow-hidden transition-all duration-300 ease-out ${
-              dragOver ? 'border-rose-300 shadow-lg shadow-rose-100/70 scale-[1.01]' : 'border-rose-200'
-            } ${busy ? 'opacity-90' : 'hover:shadow-md hover:shadow-rose-100/50'}`}
+              dragOver ? 'border-blue-400 shadow-lg shadow-blue-100/70 scale-[1.01]' : 'border-blue-200'
+            } ${busy ? 'opacity-90' : 'hover:shadow-md hover:shadow-blue-100/50'}`}
             style={{
-              background: 'linear-gradient(180deg, rgba(255,92,122,0.85), rgba(255,92,122,0.70))',
+              background: 'linear-gradient(180deg, rgba(37,99,235,0.85), rgba(37,99,235,0.70))',
             }}
             onDragEnter={(e) => {
               e.preventDefault();
@@ -369,7 +369,7 @@ export default function ReviewPage() {
                     const pct = Math.min(100, Math.max(0, uploadPercent));
                     const sparkLeft = `calc(${pct}% - 10px)`;
                     return (
-                      <div className="rounded-2xl border border-rose-200 bg-white/70 px-4 py-3 shadow-sm">
+                      <div className="rounded-2xl border border-blue-200 bg-white/70 px-4 py-3 shadow-sm">
                         <div className="flex items-center justify-between text-xs text-slate-700">
                           <div className="font-extrabold">Uploading</div>
                           <div className="font-extrabold tabular-nums">{pct}%</div>
@@ -384,7 +384,7 @@ export default function ReviewPage() {
                             }}
                           />
                           <div
-                            className="h-full rounded-full bg-gradient-to-r from-rose-500 via-fuchsia-500 to-amber-400 transition-[width] duration-200"
+                            className="h-full rounded-full bg-gradient-to-r from-blue-700 via-blue-500 to-blue-400 transition-[width] duration-200"
                             style={{ width: `${pct}%` }}
                           />
                           <div
@@ -521,7 +521,7 @@ export default function ReviewPage() {
                           <button
                             type="button"
                             onClick={() => downloadReport(it, 'pdf')}
-                            className="px-3 h-9 rounded-xl bg-[#0F141F] text-white hover:bg-[#0F141F]/90 inline-flex items-center justify-center text-xs font-semibold"
+                            className="px-3 h-9 rounded-xl bg-gray-900 text-white hover:bg-gray-800 inline-flex items-center justify-center text-xs font-semibold"
                             title="Download report (PDF)"
                           >
                             Report PDF
@@ -539,11 +539,11 @@ export default function ReviewPage() {
                           <button
                             type="button"
                             onClick={() => analyze(it)}
-                            className="w-9 h-9 rounded-xl bg-amber-50 hover:bg-amber-100 inline-flex items-center justify-center"
+                            className="w-9 h-9 rounded-xl bg-blue-50 hover:bg-blue-100 inline-flex items-center justify-center"
                             title="Re-analyze"
                             disabled={busy}
                           >
-                            <RefreshCcw className="w-4 h-4 text-amber-700" />
+                            <RefreshCcw className="w-4 h-4 text-blue-700" />
                           </button>
 
                           <button
@@ -604,7 +604,7 @@ export default function ReviewPage() {
                     Preview isn’t available for this file type.{' '}
                     <button
                       type="button"
-                      className="text-rose-600 font-semibold"
+                      className="text-blue-600 font-semibold"
                       onClick={() => preview.item && downloadOriginal(preview.item)}
                     >
                       Download original

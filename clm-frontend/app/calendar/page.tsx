@@ -43,18 +43,18 @@ const colorForCategory = (category: CalendarEvent['category']) => {
   switch (category) {
     case 'renewal':
       return {
-        pill: 'bg-orange-50 text-orange-700 border-orange-200',
-        chip: 'bg-orange-100 text-orange-700',
+        pill: 'bg-blue-50 text-blue-700 border-blue-200',
+        chip: 'bg-blue-100 text-blue-800',
       };
     case 'expiry':
       return {
-        pill: 'bg-rose-50 text-rose-700 border-rose-200',
-        chip: 'bg-rose-100 text-rose-700',
+        pill: 'bg-gray-100 text-gray-700 border-gray-200',
+        chip: 'bg-gray-200 text-gray-700',
       };
     default:
       return {
-        pill: 'bg-sky-50 text-sky-700 border-sky-200',
-        chip: 'bg-sky-100 text-sky-700',
+        pill: 'bg-blue-50 text-blue-600 border-blue-100',
+        chip: 'bg-blue-50 text-blue-700',
       };
   }
 };
@@ -319,7 +319,7 @@ export default function CalendarPage() {
 
                   <button
                     type="button"
-                    className="inline-flex items-center gap-2 rounded-full bg-[#FF5C7A] text-white px-5 py-2.5 text-sm font-semibold hover:bg-[#ff4a6c]"
+                    className="inline-flex items-center gap-2 rounded-full bg-blue-600 text-white px-5 py-2.5 text-sm font-semibold hover:bg-blue-700"
                     onClick={() => startCreate(selectedDay)}
                   >
                     <Plus className="w-4 h-4" />
@@ -329,7 +329,7 @@ export default function CalendarPage() {
               </div>
 
               {error && (
-                <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                   {error}
                 </div>
               )}
@@ -365,12 +365,12 @@ export default function CalendarPage() {
                             onDoubleClick={() => startCreate(day)}
                             className={`min-h-[92px] border-t border-slate-200 border-r border-slate-200 text-left px-3 py-2 transition hover:bg-slate-50 ${
                               !inMonth ? 'bg-slate-50/60 text-slate-400' : 'bg-white'
-                            } ${active ? 'outline outline-2 outline-[#FF5C7A] outline-offset-[-2px]' : ''}`}
+                            } ${active ? 'outline outline-2 outline-blue-500 outline-offset-[-2px]' : ''}`}
                           >
                             <div className="flex items-start justify-between">
                               <div className={`text-sm font-semibold ${inMonth ? 'text-slate-900' : 'text-slate-400'}`}>{day.getDate()}</div>
                               {isSameDay(day, new Date()) && (
-                                <div className="text-[10px] font-bold text-white bg-[#FF5C7A] rounded-full px-2 py-0.5">Today</div>
+                                <div className="text-[10px] font-bold text-white bg-blue-600 rounded-full px-2 py-0.5">Today</div>
                               )}
                             </div>
 
@@ -422,7 +422,7 @@ export default function CalendarPage() {
                             }}
                             onDoubleClick={() => startCreate(day)}
                             className={`min-h-[140px] border-t border-slate-200 border-r border-slate-200 text-left px-3 py-2 transition hover:bg-slate-50 bg-white ${
-                              active ? 'outline outline-2 outline-[#FF5C7A] outline-offset-[-2px]' : ''
+                              active ? 'outline outline-2 outline-blue-500 outline-offset-[-2px]' : ''
                             }`}
                           >
                             <div className="mt-1 space-y-1">
@@ -516,7 +516,7 @@ export default function CalendarPage() {
 
               <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 flex items-center gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex flex-col items-center justify-center">
-                  <div className="text-[10px] font-extrabold text-rose-500">{selectedDay.toLocaleDateString(undefined, { month: 'short' }).toUpperCase()}</div>
+                  <div className="text-[10px] font-extrabold text-blue-600">{selectedDay.toLocaleDateString(undefined, { month: 'short' }).toUpperCase()}</div>
                   <div className="text-sm font-extrabold text-slate-900">{selectedDay.getDate()}</div>
                 </div>
                 <div>
@@ -540,7 +540,7 @@ export default function CalendarPage() {
                         <button
                           key={ev.id}
                           type="button"
-                          className={`w-full px-4 py-3 text-left hover:bg-slate-50 ${active ? 'bg-rose-50/60' : ''}`}
+                          className={`w-full px-4 py-3 text-left hover:bg-slate-50 ${active ? 'bg-blue-50/60' : ''}`}
                           onClick={() => startEdit(ev)}
                         >
                           <div className="flex items-center justify-between gap-3">
@@ -565,7 +565,7 @@ export default function CalendarPage() {
                   <input
                     value={formTitle}
                     onChange={(e) => setFormTitle(e.target.value)}
-                    className="mt-2 w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-200"
+                    className="mt-2 w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
                     placeholder="Vendor Renewal"
                   />
                 </div>
@@ -577,7 +577,7 @@ export default function CalendarPage() {
                       type="datetime-local"
                       value={formStart}
                       onChange={(e) => setFormStart(e.target.value)}
-                      className="mt-2 w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-200"
+                      className="mt-2 w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
                     />
                   </div>
                   <div>
@@ -586,7 +586,7 @@ export default function CalendarPage() {
                       type="datetime-local"
                       value={formEnd}
                       onChange={(e) => setFormEnd(e.target.value)}
-                      className="mt-2 w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-200"
+                      className="mt-2 w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
                     />
                   </div>
                 </div>
@@ -597,7 +597,7 @@ export default function CalendarPage() {
                     <select
                       value={formContractId}
                       onChange={(e) => setFormContractId(e.target.value)}
-                      className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-4 py-3 pr-10 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-200"
+                      className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-4 py-3 pr-10 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
                     >
                       <option value="">Select contract</option>
                       {contracts.map((c) => (
@@ -615,7 +615,7 @@ export default function CalendarPage() {
                   <input
                     value={formSummary}
                     onChange={(e) => setFormSummary(e.target.value)}
-                    className="mt-2 w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-200"
+                    className="mt-2 w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
                     placeholder="Short summary"
                   />
                 </div>
@@ -626,7 +626,7 @@ export default function CalendarPage() {
                     value={formDescription}
                     onChange={(e) => setFormDescription(e.target.value)}
                     rows={4}
-                    className="mt-2 w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-200 resize-none"
+                    className="mt-2 w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
                     placeholder="Discussion about renewal terms..."
                   />
                 </div>
@@ -635,7 +635,7 @@ export default function CalendarPage() {
                   type="button"
                   onClick={save}
                   disabled={busy}
-                  className="w-full mt-2 inline-flex items-center justify-center rounded-full bg-[#FF5C7A] text-white px-6 py-3 text-sm font-extrabold hover:bg-[#ff4a6c] disabled:opacity-60"
+                  className="w-full mt-2 inline-flex items-center justify-center rounded-full bg-blue-600 text-white px-6 py-3 text-sm font-extrabold hover:bg-blue-700 disabled:opacity-60"
                 >
                   Save Changes
                 </button>
